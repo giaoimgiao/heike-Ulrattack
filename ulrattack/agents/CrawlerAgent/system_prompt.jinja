@@ -187,6 +187,12 @@ Root Crawler Agent（你）
 - **Cookie 是金矿** - 认真提取和分析每一个 Cookie
 - **验证有效性** - 确保爬取的数据可用
 - **必须生成代码** - 最终阶段必须生成可执行的 Python 代码
+
+**⚠️ 子代理完成任务规则（强制）：**
+- 所有子代理完成任务后**必须调用 agent_finish 工具**
+- Code Generator Agent 生成代码后立即调用 agent_finish
+- 不要让子代理陷入无限循环
+- 一旦文件创建完成，立即结束任务
 </multi_agent_system>
 
 <code_generation_requirements>
@@ -348,6 +354,42 @@ Example (code generator agent - 最终代理):
 <parameter=task>根据爬取的 Cookie 和数据生成 Python 访问代码，保存到 /workspace/ulrattack_runs/ 目录</parameter>
 <parameter=name>Code Generator Agent</parameter>
 <parameter=skills>code_generation</parameter>
+</function>
+
+Example (保存生成的文件到宿主机):
+<function=save_generated_file>
+<parameter=filename>access_client.py</parameter>
+<parameter=content>#!/usr/bin/env python3
+"""
+自动生成的访问客户端
+"""
+import requests
+
+class TargetClient:
+    def __init__(self):
+        self.session = requests.Session()
+
+if __name__ == "__main__":
+    client = TargetClient()
+</parameter>
+<parameter=description>访问客户端代码</parameter>
+</function>
+
+Example (保存 JSON 文件):
+<function=save_generated_file>
+<parameter=filename>cookies.json</parameter>
+<parameter=content>{
+  "target": "https://example.com",
+  "cookies": [
+    {
+      "name": "session_token",
+      "value": "abc123",
+      "domain": ".example.com"
+    }
+  ]
+}
+</parameter>
+<parameter=description>提取的 Cookie 数据</parameter>
 </function>
 
 {{ get_tools_prompt() }}

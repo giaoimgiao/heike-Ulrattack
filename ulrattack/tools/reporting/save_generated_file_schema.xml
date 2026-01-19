@@ -1,0 +1,108 @@
+<!--
+工具：保存生成的文件到宿主机 ulrattack_runs 目录
+-->
+<function>
+  <name>save_generated_file</name>
+  <description>
+    保存生成的文件到宿主机的 ulrattack_runs 目录（不是容器内）。
+    
+    这个工具会将文件直接保存到宿主机的 ulrattack_runs 目录，用户可以在项目目录中找到生成的文件。
+    
+    **使用场景**：
+    - 保存爬虫生成的访问客户端代码（access_client.py）
+    - 保存提取的 Cookie 数据（cookies.json）
+    - 保存 PoC 测试脚本（poc_*.py）
+    - 保存攻击 Payload 文件（payloads/*.txt）
+    
+    **重要**：
+    - ✅ 使用这个工具，文件会保存到宿主机，用户可以看到
+    - ❌ 不要使用 str_replace_editor 或 run_terminal_cmd 创建文件到 /workspace/ulrattack_runs/，那些文件只在容器内，宿主机看不到
+  </description>
+  <parameters>
+    <parameter name="filename" type="string" required="true">
+      <description>
+        文件名（例如：attack_toolkit.py, cookies.json, access_client.py）
+      </description>
+    </parameter>
+    <parameter name="content" type="string" required="true">
+      <description>
+        文件内容（完整的文件内容，包括所有代码、JSON 数据等）
+      </description>
+    </parameter>
+    <parameter name="description" type="string" required="false">
+      <description>
+        文件描述（简短说明这个文件的用途）
+      </description>
+    </parameter>
+    <parameter name="subdirectory" type="string" required="false">
+      <description>
+        子目录（可选，例如：exploits, payloads, scripts）。
+        如果指定，文件会保存到 ulrattack_runs/{subdirectory}/{filename}
+      </description>
+    </parameter>
+  </parameters>
+  <returns>
+    <success type="boolean">是否成功保存文件</success>
+    <message type="string">成功或失败的消息</message>
+    <path type="string">相对于项目根目录的文件路径</path>
+    <full_path type="string">文件的完整绝对路径</full_path>
+    <error type="string">如果失败，包含错误信息</error>
+  </returns>
+  <example>
+    <description>保存爬虫生成的访问客户端代码</description>
+    <code>
+<![CDATA[
+<function=save_generated_file>
+<parameter=filename>access_client.py</parameter>
+<parameter=content>#!/usr/bin/env python3
+"""
+自动生成的访问客户端
+"""
+import requests
+import json
+
+class TargetClient:
+    def __init__(self):
+        self.session = requests.Session()
+        
+    def login(self, username, password):
+        # 登录逻辑
+        pass
+        
+if __name__ == "__main__":
+    client = TargetClient()
+</parameter>
+<parameter=description>自动生成的 API 访问客户端</parameter>
+</function>
+]]>
+    </code>
+  </example>
+  <example>
+    <description>保存 PoC 脚本到子目录</description>
+    <code>
+<![CDATA[
+<function=save_generated_file>
+<parameter=filename>sqli_poc.py</parameter>
+<parameter=subdirectory>exploits</parameter>
+<parameter=content>#!/usr/bin/env python3
+"""SQL 注入 PoC 脚本"""
+import requests
+
+def test_sql_injection(target_url):
+    # PoC 测试代码
+    payload = "' OR 1=1--"
+    resp = requests.get(target_url, params={"id": payload})
+    return "error" in resp.text.lower()
+
+if __name__ == "__main__":
+    target = "http://example.com/user"
+    if test_sql_injection(target):
+        print("Vulnerable to SQL injection")
+</parameter>
+<parameter=description>SQL 注入概念验证脚本</parameter>
+</function>
+]]>
+    </code>
+  </example>
+</function>
+

@@ -29,6 +29,7 @@ def str_replace_editor(
     old_str: str | None = None,
     new_str: str | None = None,
     insert_line: int | None = None,
+    agent_state: Any = None,
 ) -> dict[str, Any]:
     from openhands_aci import file_editor
 
@@ -36,6 +37,52 @@ def str_replace_editor(
         path_obj = Path(path)
         if not path_obj.is_absolute():
             path = str(Path("/workspace") / path_obj)
+        
+        # 权限检查：只有 Report Agent 才能创建报告文件
+        if command == "create" and "attack_report.md" in path:
+            agent_name = getattr(agent_state, "agent_name", "") if agent_state else ""
+            if "Report" not in agent_name and "report" not in agent_name.lower():
+                # 向父节点报告异常
+                if agent_state and hasattr(agent_state, 'parent_id') and agent_state.parent_id:
+                    try:
+                        from ulrattack.tools.agents_graph.agents_graph_actions import send_message_to_agent
+                        
+                        send_message_to_agent(
+                            agent_state=agent_state,
+                            target_agent_id=agent_state.parent_id,
+                            message=f"""<permission_violation>
+⚠️ Agent 权限异常报告
+
+**违规 Agent**: {agent_name} ({agent_state.agent_id})
+**尝试操作**: 创建攻击报告文件 (attack_report.md)
+**违规原因**: 该 Agent 无权创建最终报告
+
+**Agent 任务**: {agent_state.task}
+
+**建议处理**:
+1. 如果需要生成报告，请创建 "Attack Report Agent"
+2. 或者指导该 Agent 专注于其职责范围内的任务
+3. 该 Agent 应调用 agent_finish 结束当前任务
+
+**注意**: 只有名称包含 "Report" 的 Agent 才能生成最终报告。
+</permission_violation>""",
+                            message_type="information",
+                            priority="high"
+                        )
+                    except Exception as e:
+                        import logging
+                        logging.warning(f"Failed to notify parent agent: {e}")
+                
+                return {
+                    "output": "",
+                    "error": (
+                        f"❌ 权限拒绝：Agent '{agent_name}' 无权创建攻击报告文件。\n"
+                        f"只有 'Attack Report Agent' 才能生成最终报告。\n"
+                        f"你的职责是：{agent_state.task if agent_state else '未知'}\n"
+                        f"已向父节点 (Root Agent) 报告此异常。\n"
+                        f"请等待父节点的指示，或调用 agent_finish 结束你的任务。"
+                    )
+                }
 
         result = file_editor(
             command=command,

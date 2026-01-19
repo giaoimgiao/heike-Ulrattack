@@ -186,6 +186,60 @@ if __name__ == "__main__":
     print(f"Status: {resp.status_code}")
 ```
 
+## 文件创建方法
+
+### ✅ 正确方法：使用 save_generated_file 工具保存到宿主机
+
+```xml
+<function=save_generated_file>
+<parameter=filename>cookies.json</parameter>
+<parameter=content>{
+  "target": "https://example.com",
+  "extracted_at": "2024-01-01T00:00:00Z",
+  "cookies": [
+    {
+      "name": "session_token",
+      "value": "abc123...",
+      "domain": ".example.com",
+      "path": "/"
+    }
+  ],
+  "headers": {
+    "Authorization": "Bearer xxx"
+  }
+}
+</parameter>
+<parameter=description>提取的 Cookie 数据</parameter>
+</function>
+```
+
+### 创建访问客户端代码
+
+```xml
+<function=save_generated_file>
+<parameter=filename>access_client.py</parameter>
+<parameter=content>#!/usr/bin/env python3
+"""
+自动生成的访问客户端
+"""
+import requests
+import json
+from pathlib import Path
+
+class TargetClient:
+    def __init__(self):
+        self.session = requests.Session()
+        # 完整代码...
+</parameter>
+<parameter=description>自动生成的 API 访问客户端</parameter>
+</function>
+```
+
+### 重要提示
+- **✅ 必须使用 save_generated_file 工具**创建文件到宿主机
+- **❌ 不要使用 str_replace_editor 或 run_terminal_cmd** - 这些会在容器内创建文件，宿主机看不到
+- **不要只输出代码**，必须实际调用 save_generated_file 工具
+
 ## 输出目录结构
 
 ```
@@ -193,9 +247,6 @@ if __name__ == "__main__":
 ├── cookies.json          # Cookie 数据
 ├── access_client.py      # 访问客户端代码
 ├── api_calls.py          # API 调用示例
-├── data/                 # 爬取的数据
-│   ├── page_*.json
-│   └── ...
 └── README.md             # 使用说明
 ```
 

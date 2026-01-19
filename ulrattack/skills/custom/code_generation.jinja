@@ -9,6 +9,28 @@
 3. 生成完整的 Python 访问客户端
 4. 确保代码可以直接运行
 5. 保存到 /workspace/ulrattack_runs/ 目录
+6. **完成后立即调用 agent_finish 结束任务**
+
+## 工作流程（严格按顺序）
+
+1. **创建 cookies.json**：保存提取的 Cookie 信息
+2. **创建 access_client.py**：生成访问客户端代码
+3. **创建 README.md**：生成使用说明
+4. **调用 agent_finish**：文件创建完成后立即结束
+
+```xml
+<function=agent_finish>
+<parameter=result_summary>访问代码已生成并保存到 /workspace/ulrattack_runs/</parameter>
+<parameter=findings>
+- 生成了 cookies.json 文件
+- 生成了 access_client.py 访问客户端
+- 生成了 README.md 使用说明
+</parameter>
+<parameter=success>true</parameter>
+</function>
+```
+
+**⚠️ 重要**：所有文件创建完成后，必须立即调用 `agent_finish`，不要继续循环
 
 ## 必须生成的文件
 
@@ -278,26 +300,50 @@ from access_client import TargetClient
 4. **可执行**: 代码必须能直接运行
 5. **模块化**: 功能分离，易于复用
 
-## 保存位置
+## 文件创建方法
 
-所有生成的文件必须保存到：
-```
-/workspace/ulrattack_runs/
+### ✅ 正确方法: 使用 save_generated_file 工具保存到宿主机
+
+```xml
+<function=save_generated_file>
+<parameter=filename>access_client.py</parameter>
+<parameter=content>#!/usr/bin/env python3
+"""
+自动生成的访问客户端
+"""
+import requests
+import json
+
+class TargetClient:
+    def __init__(self):
+        self.session = requests.Session()
+        # 完整代码...
+
+if __name__ == "__main__":
+    client = TargetClient()
+</parameter>
+<parameter=description>自动生成的 API 访问客户端</parameter>
+</function>
 ```
 
-使用以下命令创建目录并保存：
-```bash
-mkdir -p /workspace/ulrattack_runs
+### 保存 JSON 配置文件
+
+```xml
+<function=save_generated_file>
+<parameter=filename>cookies.json</parameter>
+<parameter=content>{
+  "target": "https://example.com",
+  "cookies": [...]
+}
+</parameter>
+<parameter=description>提取的 Cookie 数据</parameter>
+</function>
 ```
 
-```python
-# Python 中保存文件
-output_dir = Path('/workspace/ulrattack_runs')
-output_dir.mkdir(parents=True, exist_ok=True)
-
-with open(output_dir / 'access_client.py', 'w') as f:
-    f.write(code_content)
-```
+### 重要提示
+- **✅ 必须使用 save_generated_file 工具**保存文件到宿主机
+- **❌ 不要使用 str_replace_editor 或 run_terminal_cmd** - 这些会在容器内创建文件，宿主机看不到
+- 每个文件都需要单独调用一次 save_generated_file 工具
 
 </code_generation_expertise>
 

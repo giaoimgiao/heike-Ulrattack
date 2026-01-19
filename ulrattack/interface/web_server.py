@@ -286,6 +286,22 @@ async def stop_scan():
         
     return {"status": "ok"}
 
+@app.post("/api/stop_agent/{agent_id}")
+async def stop_agent(agent_id: str):
+    """停止指定的 Agent"""
+    try:
+        from ulrattack.tools.agents_graph.agents_graph_actions import stop_agent as stop_agent_func
+        
+        result = stop_agent_func(agent_id)
+        
+        if result.get("success"):
+            return {"status": "ok", "message": result.get("message", "Agent 已停止")}
+        else:
+            return {"status": "error", "message": result.get("error", "停止失败")}
+    except Exception as e:
+        logging.exception(f"Failed to stop agent {agent_id}")
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/send_message")
 async def send_message(msg: ChatMessage):
     if not state.is_scanning or not msg.agent_id:

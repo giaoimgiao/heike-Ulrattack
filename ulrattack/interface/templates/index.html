@@ -942,6 +942,24 @@
             text-overflow: ellipsis;
         }
 
+        .stop-agent-btn {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--accent-danger);
+            border-radius: var(--radius-sm);
+            padding: 2px 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0.7;
+        }
+
+        .stop-agent-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--accent-danger);
+            opacity: 1;
+        }
+
         .tree-node-item .vuln-badge {
             font-size: 10px;
             padding: 2px 6px;
@@ -1613,6 +1631,26 @@ ULRATTACK
             document.getElementById('stop-btn').disabled = true;
         }
 
+        async function stopAgent(agentId) {
+            try {
+                const response = await fetch(`/api/stop_agent/${agentId}`, { 
+                    method: 'POST' 
+                });
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    console.log(`Agent ${agentId} stopped:`, data.message);
+                    // UI 会通过 WebSocket 更新自动刷新
+                } else {
+                    console.error(`Failed to stop agent ${agentId}:`, data.message);
+                    alert(`停止失败: ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Error stopping agent:', error);
+                alert(`停止出错: ${error.message}`);
+            }
+        }
+
         async function handleInput(e) {
             if (e.key === 'Enter') {
                 const input = document.getElementById('chat-input');
@@ -1736,14 +1774,34 @@ ULRATTACK
                 itemDiv.innerHTML = `
                     <span class="status-icon">${statusIcon}</span>
                     <span class="agent-name" title="${agent.name}">${agent.name}</span>
+                    ${agent.status === 'running' || agent.status === 'waiting' ? `
+                        <button class="stop-agent-btn" data-agent-id="${agent.id}" title="停止此 Agent">
+                            ⏹️
+                        </button>
+                    ` : ''}
                 `;
                 itemDiv.onclick = (e) => {
+                    // 如果点击的是停止按钮，不触发选择
+                    if (e.target.classList.contains('stop-agent-btn')) {
+                        return;
+                    }
                     e.stopPropagation();
                     selectAgent(agent.id);
                     // 更新树中的选中状态
                     document.querySelectorAll('.tree-node-item').forEach(el => el.classList.remove('active'));
                     itemDiv.classList.add('active');
                 };
+                
+                // 添加停止按钮事件
+                const stopBtn = itemDiv.querySelector('.stop-agent-btn');
+                if (stopBtn) {
+                    stopBtn.onclick = async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`确定要停止 "${agent.name}" 吗？`)) {
+                            await stopAgent(agent.id);
+                        }
+                    };
+                }
                 
                 nodeDiv.appendChild(itemDiv);
                 
