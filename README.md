@@ -4,7 +4,7 @@
   # ULRATTACK
   
   **下一代 AI 自动化黑客与安全评估平台**
-  
+  [点击加入项目群聊](https://qm.qq.com/q/363ONrpeWk):875239673 
   [![GitHub Stars](https://img.shields.io/github/stars/giaoimgiao/heike-Ulrattack?style=flat-square&logo=github&label=Stars)](https://github.com/giaoimgiao/heike-Ulrattack)
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE)
   [![Python](https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
