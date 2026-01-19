@@ -1,4 +1,10 @@
 <div align="center">
+
+## 🔥 [点击加入项目群聊](https://qm.qq.com/q/363ONrpeWk) 🔥
+### QQ 群：875239673
+
+---
+
   <img src="ulrattack/log/log.png" alt="ULRATTACK Logo" width="200">
   # ULRATTACK
   
