@@ -10,7 +10,6 @@
   [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED.svg?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 
 </div>
-  [点击加入项目群聊](https://qm.qq.com/q/363ONrpeWk):875239673 
 ---
 
 ## 项目简介
