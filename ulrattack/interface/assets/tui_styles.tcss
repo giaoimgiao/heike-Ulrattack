@@ -1,0 +1,718 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ULRATTACK - 黑客风格终端界面样式
+   Matrix Green + Cyber Cyan 配色方案
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 全局屏幕样式 */
+Screen {
+    background: #0a0a0a;
+    color: #c0c0c0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   启动画面 - Matrix 风格
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#splash_screen {
+    height: 100%;
+    width: 100%;
+    background: #000000;
+    color: #00ff41;
+    align: center middle;
+    content-align: center middle;
+    text-align: center;
+}
+
+#splash_content {
+    width: auto;
+    height: auto;
+    background: transparent;
+    text-align: center;
+    content-align: center middle;
+    padding: 2;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   主容器布局
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#main_container {
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    background: #0a0a0a;
+}
+
+#content_container {
+    height: 1fr;
+    padding: 0;
+    background: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   侧边栏 - 代理树形列表和统计信息
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#sidebar {
+    width: 25%;
+    background: transparent;
+    margin-left: 1;
+}
+
+#sidebar.-hidden {
+    display: none;
+}
+
+#agents_tree {
+    height: 1fr;
+    background: #0d0d0d;
+    border: round #1a3d1a;
+    border-title-color: #00ff41;
+    border-title-style: bold;
+    padding: 1;
+    margin-bottom: 0;
+}
+
+#stats_display {
+    height: auto;
+    max-height: 15;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   漏洞面板 - 红色警告配色
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#vulnerabilities_panel {
+    height: auto;
+    max-height: 12;
+    background: #0d0d0d;
+    padding: 0;
+    margin: 0;
+    border: round #3d1a1a;
+    overflow-y: auto;
+    scrollbar-background: #0a0a0a;
+    scrollbar-color: #3d1a1a;
+    scrollbar-corner-color: #0a0a0a;
+    scrollbar-size-vertical: 1;
+}
+
+#vulnerabilities_panel.hidden {
+    display: none;
+}
+
+.vuln-item {
+    height: auto;
+    width: 100%;
+    padding: 0 1;
+    background: transparent;
+    color: #c0c0c0;
+}
+
+.vuln-item:hover {
+    background: #1a0d0d;
+    color: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   漏洞详情模态窗口
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+VulnerabilityDetailScreen {
+    align: center middle;
+    background: #000000 85%;
+}
+
+#vuln_detail_dialog {
+    grid-size: 1;
+    grid-gutter: 1;
+    grid-rows: 1fr auto;
+    padding: 2 3;
+    width: 85%;
+    max-width: 110;
+    height: 85%;
+    max-height: 45;
+    border: double #ff0040;
+    background: #0a0a0a;
+}
+
+#vuln_detail_scroll {
+    height: 1fr;
+    background: transparent;
+    scrollbar-background: #0a0a0a;
+    scrollbar-color: #3d1a1a;
+    scrollbar-corner-color: #0a0a0a;
+    scrollbar-size: 1 1;
+    padding-right: 1;
+}
+
+#vuln_detail_content {
+    width: 100%;
+    background: transparent;
+    padding: 0;
+}
+
+#vuln_detail_buttons {
+    width: 100%;
+    height: auto;
+    align: right middle;
+    padding-top: 1;
+    margin: 0;
+    border-top: solid #1a1a1a;
+}
+
+#copy_vuln_detail {
+    width: auto;
+    min-width: 12;
+    height: auto;
+    background: transparent;
+    color: #666666;
+    border: none;
+    text-style: none;
+    margin: 0 1;
+    padding: 0 2;
+}
+
+#close_vuln_detail {
+    width: auto;
+    min-width: 10;
+    height: auto;
+    background: transparent;
+    color: #00ff41;
+    border: none;
+    text-style: none;
+    margin: 0;
+    padding: 0 2;
+}
+
+#copy_vuln_detail:hover, #copy_vuln_detail:focus {
+    background: transparent;
+    color: #00d4ff;
+    border: none;
+}
+
+#close_vuln_detail:hover, #close_vuln_detail:focus {
+    background: transparent;
+    color: #00ff41;
+    text-style: bold;
+    border: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   聊天区域 - 主交互界面
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#chat_area_container {
+    width: 75%;
+    background: transparent;
+}
+
+#chat_area_container.-full-width {
+    width: 100%;
+}
+
+#chat_history {
+    height: 1fr;
+    background: #0d0d0d;
+    border: round #1a1a1a;
+    padding: 0;
+    margin-bottom: 0;
+    margin-right: 0;
+    scrollbar-background: #0a0a0a;
+    scrollbar-color: #1a3d1a;
+    scrollbar-corner-color: #0a0a0a;
+    scrollbar-size: 1 1;
+}
+
+#agent_status_display {
+    height: 1;
+    background: transparent;
+    margin: 0;
+    padding: 0 1;
+}
+
+#agent_status_display.hidden {
+    display: none;
+}
+
+#status_text {
+    width: 1fr;
+    height: 100%;
+    background: transparent;
+    color: #808080;
+    text-align: left;
+    content-align: left middle;
+    text-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#keymap_indicator {
+    width: auto;
+    height: 100%;
+    background: transparent;
+    color: #505050;
+    text-align: right;
+    content-align: right middle;
+    text-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   输入框 - 黑客终端风格
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#chat_input_container {
+    height: 3;
+    background: #0d0d0d;
+    border: round #1a3d1a;
+    margin-right: 0;
+    padding: 0;
+    layout: horizontal;
+    align-vertical: top;
+}
+
+#chat_input_container:focus-within {
+    border: round #00ff41;
+}
+
+#chat_input_container:focus-within #chat_prompt {
+    color: #00ff41;
+    text-style: bold;
+}
+
+#chat_prompt {
+    width: auto;
+    height: 100%;
+    padding: 0 0 0 1;
+    color: #00ff41;
+    content-align-vertical: top;
+}
+
+#chat_history:focus {
+    border: round #00ff41;
+}
+
+#chat_input {
+    width: 1fr;
+    height: 100%;
+    background: transparent;
+    border: none;
+    color: #c0c0c0;
+    padding: 0;
+    margin: 0;
+}
+
+#chat_input:focus {
+    border: none;
+}
+
+#chat_input .text-area--cursor-line {
+    background: transparent;
+}
+
+#chat_input:focus .text-area--cursor-line {
+    background: transparent;
+}
+
+#chat_input > .text-area--placeholder {
+    color: #404040;
+    text-style: italic;
+}
+
+#chat_input > .text-area--cursor {
+    color: #00ff41;
+    background: #00ff41;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   聊天内容样式
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.chat-placeholder {
+    width: 100%;
+    height: 100%;
+    content-align: center middle;
+    text-align: center;
+    color: #505050;
+    text-style: italic;
+}
+
+.chat-content {
+    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding: 0 1;
+    background: transparent;
+    width: 100%;
+}
+
+.chat-message {
+    margin-bottom: 0;
+    padding: 0;
+    background: transparent;
+    width: 100%;
+}
+
+.user-message {
+    color: #e0e0e0;
+    border-left: thick #00d4ff;
+    padding-left: 1;
+    margin-bottom: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   工具调用样式
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.tool-call {
+    margin-top: 1;
+    margin-bottom: 0;
+    padding: 0 1;
+    background: transparent;
+    border: none;
+    width: 100%;
+}
+
+.tool-call.status-completed {
+    background: transparent;
+    margin-top: 1;
+    margin-bottom: 0;
+}
+
+.tool-call.status-running {
+    background: transparent;
+    margin-top: 1;
+    margin-bottom: 0;
+}
+
+.tool-call.status-failed,
+.tool-call.status-error {
+    background: transparent;
+    margin-top: 1;
+    margin-bottom: 0;
+}
+
+.browser-tool,
+.terminal-tool,
+.python-tool,
+.agents-graph-tool,
+.file-edit-tool,
+.proxy-tool,
+.notes-tool,
+.thinking-tool,
+.web-search-tool,
+.scan-info-tool,
+.subagent-info-tool {
+    margin-top: 1;
+    margin-bottom: 0;
+    background: transparent;
+}
+
+.finish-tool,
+.reporting-tool {
+    margin-top: 1;
+    margin-bottom: 0;
+    background: transparent;
+}
+
+.browser-tool.status-completed,
+.browser-tool.status-running,
+.terminal-tool.status-completed,
+.terminal-tool.status-running,
+.python-tool.status-completed,
+.python-tool.status-running,
+.agents-graph-tool.status-completed,
+.agents-graph-tool.status-running,
+.file-edit-tool.status-completed,
+.file-edit-tool.status-running,
+.proxy-tool.status-completed,
+.proxy-tool.status-running,
+.notes-tool.status-completed,
+.notes-tool.status-running,
+.thinking-tool.status-completed,
+.thinking-tool.status-running,
+.web-search-tool.status-completed,
+.web-search-tool.status-running,
+.scan-info-tool.status-completed,
+.scan-info-tool.status-running,
+.subagent-info-tool.status-completed,
+.subagent-info-tool.status-running {
+    background: transparent;
+    margin-top: 1;
+    margin-bottom: 0;
+}
+
+.finish-tool.status-completed,
+.finish-tool.status-running,
+.reporting-tool.status-completed,
+.reporting-tool.status-running {
+    background: transparent;
+    margin-top: 1;
+    margin-bottom: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   树形列表样式 - Matrix 配色
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+Tree {
+    background: transparent;
+    color: #c0c0c0;
+    scrollbar-background: transparent;
+    scrollbar-color: #1a3d1a;
+    scrollbar-corner-color: transparent;
+    scrollbar-size: 1 1;
+}
+
+Tree > .tree--label {
+    text-style: bold;
+    color: #00ff41;
+    background: transparent;
+    padding: 0 1;
+    margin-bottom: 1;
+    border-bottom: solid #1a3d1a;
+    text-align: center;
+}
+
+.tree--node {
+    height: 1;
+    padding: 0;
+    margin: 0;
+}
+
+.tree--node-label {
+    color: #a0a0a0;
+    background: transparent;
+    text-style: none;
+    padding: 0 1;
+    margin: 0 1;
+}
+
+.tree--node:hover .tree--node-label {
+    background: transparent;
+    color: #00ff41;
+    text-style: bold;
+    border-left: solid #1a3d1a;
+}
+
+.tree--node.-selected .tree--node-label {
+    background: transparent;
+    color: #00ff41;
+    text-style: bold;
+    border-left: heavy #00ff41;
+}
+
+.tree--node.-expanded .tree--node-label {
+    text-style: bold;
+    color: #00ff41;
+    background: transparent;
+    border-left: solid #008f11;
+}
+
+Tree:focus {
+    border: round #1a3d1a;
+}
+
+Tree:focus > .tree--label {
+    color: #00ff41;
+    text-style: bold;
+    background: transparent;
+}
+
+.tree--node .tree--node .tree--node-label {
+    color: #808080;
+    padding-left: 2;
+    border: none;
+    background: transparent;
+    margin-left: 1;
+}
+
+.tree--node .tree--node:hover .tree--node-label {
+    background: transparent;
+    color: #00d4ff;
+}
+
+.tree--node .tree--node .tree--node .tree--node-label {
+    color: #606060;
+    padding-left: 3;
+    text-style: none;
+    border: none;
+    background: transparent;
+    margin-left: 2;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   停止代理对话框
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+StopAgentScreen {
+    align: center middle;
+    background: $background 0%;
+}
+
+#stop_agent_dialog {
+    grid-size: 1;
+    grid-gutter: 1;
+    grid-rows: auto auto;
+    padding: 1;
+    width: 32;
+    height: auto;
+    border: round #ffcc00;
+    background: #0a0a0a 98%;
+}
+
+#stop_agent_title {
+    color: #ffcc00;
+    text-style: bold;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 0;
+}
+
+#stop_agent_buttons {
+    grid-size: 2;
+    grid-gutter: 1;
+    grid-columns: 1fr 1fr;
+    width: 100%;
+    height: 1;
+}
+
+#stop_agent_buttons Button {
+    height: 1;
+    min-height: 1;
+    border: none;
+    text-style: bold;
+}
+
+#stop_agent {
+    background: transparent;
+    color: #ff0040;
+    border: none;
+}
+
+#stop_agent:hover, #stop_agent:focus {
+    background: #ff0040;
+    color: #ffffff;
+    border: none;
+}
+
+#cancel_stop {
+    background: transparent;
+    color: #666666;
+    border: none;
+}
+
+#cancel_stop:hover, #cancel_stop:focus {
+    background: #1a1a1a;
+    color: #ffffff;
+    border: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   退出对话框
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+QuitScreen {
+    align: center middle;
+    background: $background 0%;
+}
+
+#quit_dialog {
+    grid-size: 1;
+    grid-gutter: 1;
+    grid-rows: auto auto;
+    padding: 1;
+    width: 26;
+    height: auto;
+    border: round #00ff41;
+    background: #0a0a0a 98%;
+}
+
+#quit_title {
+    color: #c0c0c0;
+    text-style: bold;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 0;
+}
+
+#quit_buttons {
+    grid-size: 2;
+    grid-gutter: 1;
+    grid-columns: 1fr 1fr;
+    width: 100%;
+    height: 1;
+}
+
+#quit_buttons Button {
+    height: 1;
+    min-height: 1;
+    border: none;
+    text-style: bold;
+}
+
+#quit {
+    background: transparent;
+    color: #ff0040;
+    border: none;
+}
+
+#quit:hover, #quit:focus {
+    background: #ff0040;
+    color: #ffffff;
+    border: none;
+}
+
+#cancel {
+    background: transparent;
+    color: #666666;
+    border: none;
+}
+
+#cancel:hover, #cancel:focus {
+    background: #1a1a1a;
+    color: #ffffff;
+    border: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   帮助对话框 - Matrix 风格
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+HelpScreen {
+    align: center middle;
+    background: $background 0%;
+}
+
+#dialog {
+    grid-size: 1;
+    grid-gutter: 0 1;
+    grid-rows: auto auto;
+    padding: 1 2;
+    width: 42;
+    height: auto;
+    border: double #00ff41;
+    background: #0a0a0a 98%;
+}
+
+#help_title {
+    color: #00ff41;
+    text-style: bold;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 1;
+}
+
+#help_content {
+    color: #a0a0a0;
+    text-align: left;
+    width: 100%;
+    margin-bottom: 1;
+    padding: 0;
+    background: transparent;
+    text-style: none;
+}

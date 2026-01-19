@@ -1,0 +1,2 @@
+id,title,severity,timestamp,file
+vuln-0001,/api/ai/forward 存在 SSRF：支持任意 URL/方法/自定义头，可访问 127.0.0.1 与内部地址且跟随重定向,CRITICAL,2026-01-19 02:10:33 UTC,vulnerabilities/vuln-0001.md

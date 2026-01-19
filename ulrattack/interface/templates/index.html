@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULRATTACK - AI Penetration Testing Platform</title>
+    <link rel="icon" type="image/png" href="/static/log.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.294.0/lucide.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            /* 专业配色方案 */
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-tertiary: #141414;
+            --bg-elevated: #1a1a1a;
+            
+            /* 强调色 */
+            --accent-primary: #ffffff;
+            --accent-secondary: #666666;
+            --accent-success: #22c55e;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --accent-info: #3b82f6;
+            
+            /* 文字颜色 */
+            --text-primary: #ffffff;
+            --text-secondary: #a3a3a3;
+            --text-tertiary: #737373;
+            --text-muted: #525252;
+            
+            /* 边框 */
+            --border-primary: #262626;
+            --border-secondary: #1a1a1a;
+            
+            /* 阴影 */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            
+            /* 圆角 */
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --radius-xl: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-primary);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-secondary);
+        }
+
+        /* 页面布局 */
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 顶部导航 */
+        header {
+            height: 64px;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            background: var(--bg-primary);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-primary);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-secondary);
+        }
+
+        .status-dot.connected {
+            background: var(--accent-success);
+        }
+
+        /* 主容器 */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 320px;
+            border-right: 1px solid var(--border-primary);
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .section-header {
+            padding: 16px 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-tertiary);
+        }
+
+        .section-content {
+            padding: 16px;
+        }
+
+        /* 表单控件 */
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-elevated);
+        }
+
+        input::placeholder {
+            color: var(--text-muted);
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23737373' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        /* 按钮 */
+        .btn {
+            width: 100%;
+            padding: 10px 16px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #e5e5e5;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--bg-elevated);
+            border-color: var(--accent-secondary);
+        }
+
+        .btn-danger {
+            background: var(--accent-danger);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn + .btn {
+            margin-top: 8px;
+        }
+
+        /* 代理列表 */
+        .agents-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .agent-item {
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .agent-item:hover {
+            background: var(--bg-elevated);
+        }
+
+        .agent-item.active {
+            border-color: var(--accent-primary);
+            background: var(--bg-elevated);
+        }
+
+        .agent-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .agent-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .agent-status {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .agent-status.running {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--accent-success);
+        }
+
+        .agent-status.completed {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-info);
+        }
+
+        .agent-status.pending {
+            background: rgba(115, 115, 115, 0.1);
+            color: var(--text-tertiary);
+        }
+
+        .agent-meta {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-tertiary);
+        }
+
+        .empty-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            opacity: 0.3;
+        }
+
+        .empty-text {
+            font-size: 14px;
+        }
+
+        /* 主面板 */
+        .main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+            position: relative;
+        }
+
+        /* 网格背景 */
+        .main-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(var(--border-secondary) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-secondary) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: center top;
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: 0;
+            mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+        }
+
+        .terminal {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-primary);
+            text-align: center;
+            padding-bottom: 80px;
+        }
+
+        .welcome-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            backdrop-filter: blur(8px);
+        }
+
+        .welcome-badge span {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .welcome-badge a {
+            color: var(--accent-info);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .welcome-title {
+            font-size: 64px;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.03em;
+            background: linear-gradient(180deg, #fff 0%, #999 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-subtitle {
+            font-size: 18px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* 终端消息容器 */
+        .messages-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-bottom: 100px; /* 为底部输入框留出空间 */
+        }
+
+        .message-user {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+        }
+
+        .message-agent {
+            padding: 16px 0;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .message-content {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        /* 思考过程折叠块 */
+        details.think-block {
+            margin-bottom: 12px;
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.02);
+            overflow: hidden;
+        }
+
+        details.think-block summary {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        details.think-block summary:hover {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+
+        details.think-block .think-content {
+            padding: 12px;
+            font-size: 13px;
+            color: var(--text-tertiary);
+            line-height: 1.6;
+            border-top: 1px solid var(--border-primary);
+            white-space: pre-wrap;
+        }
+
+        /* 工具调用 */
+        .tool-call {
+            margin: 16px 0;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+        }
+
+        .tool-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .tool-result {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            font-family: 'Consolas', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin-top: 4px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius-sm);
+        }
+
+        /* 输入区域 */
+        .input-area {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 640px;
+            padding: 0;
+            background: transparent;
+            border: none;
+            z-index: 10;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .input-wrapper input {
+            flex: 1;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-lg);
+            color: var(--text-primary);
+            font-size: 16px;
+            backdrop-filter: blur(12px);
+            transition: all 0.2s;
+            height: 56px;
+        }
+
+        .input-wrapper input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .input-wrapper input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .input-action-btn {
+            height: 56px;
+            padding: 0 24px;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .input-action-btn:hover {
+            background: #e5e5e5;
+            transform: translateY(-1px);
+        }
+
+        .input-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 右侧面板 */
+        .right-panel {
+            width: 360px;
+            border-left: 1px solid var(--border-primary);
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 漏洞列表 */
+        .vulnerabilities {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .vuln-item {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-primary);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .vuln-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .vuln-header {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .vuln-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1.4;
+            flex: 1;
+        }
+
+        .severity-badge {
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+            margin-left: 8px;
+        }
+
+        .severity-critical {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-danger);
+        }
+
+        .severity-high {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-warning);
+        }
+
+        .severity-medium {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-info);
+        }
+
+        .severity-low {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--accent-success);
+        }
+
+        .severity-info {
+            background: rgba(163, 163, 163, 0.15);
+            color: var(--text-secondary);
+        }
+
+        .vuln-endpoint {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            font-family: 'Consolas', monospace;
+        }
+
+        /* 统计面板 */
+        .stats-panel {
+            border-top: 1px solid var(--border-primary);
+            padding: 20px;
+            background: var(--bg-primary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .stat-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: 12px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-xl);
+            width: 100%;
+            max-width: 800px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-md);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* Markdown样式 */
+        .markdown h1,
+        .markdown h2,
+        .markdown h3 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .markdown h1 {
+            font-size: 24px;
+        }
+
+        .markdown h2 {
+            font-size: 20px;
+        }
+
+        .markdown h3 {
+            font-size: 16px;
+        }
+
+        .markdown p {
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+
+        .markdown code {
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: 'Consolas', monospace;
+            color: var(--text-secondary);
+        }
+
+        .markdown pre {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        .markdown pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        /* 流式输出动画 */
+        .streaming {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .streaming::after {
+            content: '▊';
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* Agent 树形结构样式 */
+        .agent-tree-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            margin: 0 8px 8px 8px;
+        }
+
+        .tree-node {
+            margin-left: 0;
+        }
+
+        .tree-node-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-bottom: 2px;
+        }
+
+        .tree-node-item:hover {
+            background: var(--bg-elevated);
+        }
+
+        .tree-node-item.active {
+            background: var(--bg-elevated);
+            border-left: 3px solid var(--accent-success);
+        }
+
+        .tree-node-item .status-icon {
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .tree-node-item .agent-name {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tree-node-item .vuln-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-danger);
+            font-weight: 600;
+        }
+
+        .tree-children {
+            margin-left: 20px;
+            border-left: 1px dashed var(--border-primary);
+            padding-left: 8px;
+        }
+
+        .tree-connector {
+            position: relative;
+        }
+
+        .tree-connector::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 50%;
+            width: 8px;
+            height: 1px;
+            background: var(--border-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- 顶部导航 -->
+        <header>
+            <div class="logo">
+                <div class="logo-icon"><img src="/static/user.png" alt="User"></div>
+                <span>ULRATTACK</span>
+            </div>
+            <div class="nav-right">
+                <div class="status-indicator">
+                    <div class="status-dot" id="status-dot"></div>
+                    <span id="connection-status">Disconnected</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主容器 -->
+        <div class="main-container">
+            <!-- 左侧边栏 -->
+            <aside class="sidebar">
+                <!-- 隐藏的target input，用于存储目标值 -->
+                <input type="hidden" id="target-input" value="">
+                
+                <div class="sidebar-section">
+                    <div class="section-header">Scan Configuration</div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label class="form-label">Agent 模式</label>
+                            <select id="agent-mode" onchange="onAgentModeChange()">
+                                <option value="pentest" selected>渗透测试</option>
+                                <option value="attack">攻击测试</option>
+                                <option value="crawler">网络爬虫</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="scan-mode-group">
+                            <label class="form-label">扫描深度</label>
+                            <select id="scan-mode">
+                                <option value="quick">Quick Scan</option>
+                                <option value="standard" selected>Standard Scan</option>
+                                <option value="deep">Deep Scan</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="crawler-requirement-group" style="display: none;">
+                            <label class="form-label">爬取需求</label>
+                            <textarea id="crawler-requirement" placeholder="请描述你想爬取的内容，例如：&#10;- 爬取商品名称和价格&#10;- 获取新闻标题和链接&#10;- 提取用户评论" style="width: 100%; height: 80px; padding: 10px 12px; background: var(--bg-tertiary); border: 1px solid var(--border-primary); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px; font-family: inherit; resize: vertical;"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="start-btn" onclick="startScanFromSidebar()">开始任务</button>
+                        <button class="btn btn-danger" id="stop-btn" onclick="stopScan()" disabled>停止任务</button>
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <button class="btn btn-secondary" onclick="openSettings()" style="flex: 1; margin-top: 0;">Settings</button>
+                            <button class="btn btn-secondary" onclick="openHelp()" style="flex: 1; margin-top: 0;">Help</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                    <div class="section-header">Active Agents</div>
+                    <div class="agents-list" id="agent-tree">
+                        <div class="empty-state">
+                            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <div class="empty-text">No active agents</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 主面板 -->
+            <main class="main-panel">
+                <div class="terminal" id="terminal-output">
+                    <div class="welcome-screen">
+                        <div class="welcome-badge">
+                            <img src="/static/user.png" alt="Logo" style="width: 16px; height: 16px; border-radius: 2px;">
+                            <span>介绍 ULRATTACK v0.7</span>
+                            <span style="color: var(--border-primary)">|</span>
+                            <a href="#">现在就试试 →</a>
+                        </div>
+                        
+                        <div style="margin-bottom: 32px;">
+                            <img src="/static/log.png" alt="ULRATTACK Logo" style="width: 80px; height: 80px; border-radius: var(--radius-lg); box-shadow: 0 0 40px rgba(255,255,255,0.1);">
+                        </div>
+                        
+                        <div class="welcome-title">
+                            嘿客<br>
+                            
+ULRATTACK
+                        </div>
+                        <div class="welcome-subtitle">
+                            渗透测试只需几个小时，而不是几周。<br>
+                            ULRATTACK 使用AI Agent寻找漏洞并攻击。
+                        </div>
+                        
+                        <!-- 三种模式卡片 -->
+                        <div style="margin-top: 40px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;">
+                            <div class="mode-card" onclick="selectMode('pentest')" id="mode-card-pentest" style="background: var(--bg-secondary); border: 2px solid var(--accent-primary); border-radius: var(--radius-lg); padding: 20px; width: 180px; cursor: pointer; transition: all 0.2s;">
+                                <div style="margin-bottom: 8px;"><img src="/static/shengto.png" alt="渗透" style="width: 48px; height: 48px; object-fit: contain;"></div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">渗透测试</div>
+                                <div style="font-size: 12px; color: var(--text-tertiary);">漏洞发现 + CVSS 评分</div>
+                            </div>
+                            <div class="mode-card" onclick="selectMode('attack')" id="mode-card-attack" style="background: var(--bg-secondary); border: 2px solid var(--border-primary); border-radius: var(--radius-lg); padding: 20px; width: 180px; cursor: pointer; transition: all 0.2s;">
+                                <div style="margin-bottom: 8px;"><img src="/static/attack.png" alt="攻击" style="width: 48px; height: 48px; object-fit: contain;"></div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">攻击测试</div>
+                                <div style="font-size: 12px; color: var(--text-tertiary);">漏洞利用 + 攻击报告</div>
+                            </div>
+                            <div class="mode-card" onclick="selectMode('crawler')" id="mode-card-crawler" style="background: var(--bg-secondary); border: 2px solid var(--border-primary); border-radius: var(--radius-lg); padding: 20px; width: 180px; cursor: pointer; transition: all 0.2s;">
+                                <div style="margin-bottom: 8px;"><img src="/static/pachong.png" alt="爬虫" style="width: 48px; height: 48px; object-fit: contain;"></div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">网络爬虫</div>
+                                <div style="font-size: 12px; color: var(--text-tertiary);">智能数据爬取</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 32px; display: flex; gap: 24px; color: var(--text-tertiary); font-size: 13px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="globe" style="width: 14px; height: 14px;"></i> Web 应用
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="github" style="width: 14px; height: 14px;"></i> GitHub 仓库
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="folder" style="width: 14px; height: 14px;"></i> 本地代码
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-area">
+                    <div class="input-wrapper">
+                        <input type="text" id="target-quick-input" placeholder="输入 URL、GitHub 仓库或本地路径" onkeypress="if(event.key === 'Enter') startQuickScan()">
+                        <button class="input-action-btn" onclick="startQuickScan()">开始测试</button>
+                    </div>
+                    <!-- 隐藏原始聊天输入框，直到开始扫描 -->
+                    <input type="text" id="chat-input" placeholder="Send message to current agent..." onkeypress="handleInput(event)" style="display: none;">
+                </div>
+            </main>
+
+            <!-- 右侧面板 -->
+            <aside class="right-panel">
+                <!-- Agent 树形结构 (像 TUI 那样) -->
+                <div class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                    <div class="section-header">Agent Tree</div>
+                    <div class="agent-tree-panel" id="agent-tree-panel">
+                        <div class="empty-state">
+                            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <div class="empty-text">等待 Agent 启动...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 漏洞列表 -->
+                <div class="sidebar-section" style="max-height: 200px; display: flex; flex-direction: column;">
+                    <div class="section-header">Vulnerabilities</div>
+                    <div class="vulnerabilities" id="vuln-list" style="flex: 1; overflow-y: auto;">
+                        <div class="empty-state" style="padding: 24px;">
+                            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 32px; height: 32px;">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <div class="empty-text">No vulnerabilities found</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-panel">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Tokens</div>
+                            <div class="stat-value" id="token-count">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Cost</div>
+                            <div class="stat-value" id="cost-estimate">$0.00</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Agents</div>
+                            <div class="stat-value" id="agent-count">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Tool Calls</div>
+                            <div class="stat-value" id="tool-count">0</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- 漏洞详情模态框 -->
+    <div class="modal" id="vuln-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Vulnerability Details</div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body markdown" id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content" style="max-height: 600px;">
+            <div class="modal-header">
+                <div class="modal-title">Settings</div>
+                <button class="modal-close" onclick="closeSettings()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">LLM Model Name</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="setting-model" style="flex: 1;">
+                            <option value="">-- Select a model --</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="fetchModels()" style="width: auto; padding: 10px 16px;">Refresh</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Base URL</label>
+                    <input type="text" id="setting-api-base" placeholder="https://api.openai.com/v1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="password" id="setting-api-key" placeholder="sk-...">
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 24px;">
+                    <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Configuration</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 帮助模态框 -->
+    <div class="modal" id="help-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <div class="modal-title">使用帮助 & 指南</div>
+                <button class="modal-close" onclick="closeHelp()">×</button>
+            </div>
+            <div class="modal-body markdown">
+                <h3>快速开始</h3>
+                <p>在主页输入框中输入以下任意一种目标格式，然后点击"开始测试"：</p>
+                <ul>
+                    <li><strong>Web 应用:</strong> <code>https://example.com</code></li>
+                    <li><strong>GitHub 仓库:</strong> <code>https://github.com/giaoimgiao/repo</code></li>
+                    <li><strong>本地路径:</strong> <code>C:\path\to\your\project</code></li>
+                </ul>
+
+                <h3>Agent 模式</h3>
+                <p>ULRATTACK 提供三种 AI Agent 模式：</p>
+                <ul>
+                    <li><strong><img src="/static/shengto.png" style="width: 16px; height: 16px; vertical-align: middle;"> 渗透测试:</strong> 全面的安全漏洞扫描，生成 CVSS 评分报告。适合日常安全检查和合规审计。</li>
+                    <li><strong><img src="/static/attack.png" style="width: 16px; height: 16px; vertical-align: middle;"> 攻击测试:</strong> 基于发现的漏洞进行实际利用，验证攻击可行性。适合深度安全评估和红队测试。</li>
+                    <li><strong><img src="/static/pachong.png" style="width: 16px; height: 16px; vertical-align: middle;"> 网络爬虫:</strong> 智能数据爬取，根据你的需求自动提取网页数据。需要先描述爬取需求。</li>
+                </ul>
+
+                <h3>扫描深度 (渗透/攻击模式)</h3>
+                <ul>
+                    <li><strong>Quick Scan:</strong> 快速检查常见漏洞，速度最快。</li>
+                    <li><strong>Standard Scan:</strong> 默认推荐，平衡深度与时间。</li>
+                    <li><strong>Deep Scan:</strong> 深度分析，包含复杂的逻辑链漏洞测试。</li>
+                </ul>
+
+                <h3>网络爬虫使用说明</h3>
+                <p>使用爬虫模式时：</p>
+                <ol>
+                    <li>选择"网络爬虫"模式</li>
+                    <li>在"爬取需求"文本框中描述你想要的数据，例如：</li>
+                    <ul>
+                        <li>"爬取商品名称、价格和评分"</li>
+                        <li>"获取所有新闻标题和发布时间"</li>
+                        <li>"提取用户评论内容"</li>
+                    </ul>
+                    <li>输入目标 URL 并开始爬取</li>
+                </ol>
+
+                <h3>交互模式</h3>
+                <p>任务开始后，你可以通过底部的聊天输入框与 AI Agent 直接对话：</p>
+                <ul>
+                    <li>询问进度或发现的细节</li>
+                    <li>提供特定的指令，例如"专注于 SQL 注入测试"</li>
+                    <li>要求 AI 针对某个发现编写 PoC</li>
+                </ul>
+
+                <h3>配置说明</h3>
+                <p>点击侧边栏的 <strong>Settings</strong> 可以配置你自己的 LLM (大模型) API 密钥。支持 OpenAI, Anthropic, Gemini 等多种提供商。</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // 初始化 Lucide 图标
+        lucide.createIcons();
+
+        let socket;
+        let isScanning = false;
+        let selectedAgentId = null;
+        let displayedEvents = new Set();
+        let lastContentHash = "";
+        let currentAgentMode = 'pentest'; // 当前选择的 Agent 模式
+        
+        let settings = {
+            model: localStorage.getItem('ulrattack_model') || '',
+            apiBase: localStorage.getItem('ulrattack_api_base') || '',
+            apiKey: localStorage.getItem('ulrattack_api_key') || ''
+        };
+
+        // Agent 模式选择函数
+        function selectMode(mode) {
+            currentAgentMode = mode;
+            document.getElementById('agent-mode').value = mode;
+            onAgentModeChange();
+            
+            // 更新卡片样式
+            document.querySelectorAll('.mode-card').forEach(card => {
+                card.style.borderColor = 'var(--border-primary)';
+            });
+            const selectedCard = document.getElementById('mode-card-' + mode);
+            if (selectedCard) {
+                selectedCard.style.borderColor = 'var(--accent-primary)';
+            }
+            
+            // 更新输入框提示
+            const quickInput = document.getElementById('target-quick-input');
+            if (mode === 'crawler') {
+                quickInput.placeholder = '输入要爬取的目标 URL';
+            } else if (mode === 'attack') {
+                quickInput.placeholder = '输入要进行攻击测试的目标';
+            } else {
+                quickInput.placeholder = '输入 URL、GitHub 仓库或本地路径';
+            }
+        }
+
+        function onAgentModeChange() {
+            const mode = document.getElementById('agent-mode').value;
+            currentAgentMode = mode;
+            
+            const scanModeGroup = document.getElementById('scan-mode-group');
+            const crawlerRequirementGroup = document.getElementById('crawler-requirement-group');
+            const startBtn = document.getElementById('start-btn');
+            
+            // 更新欢迎页面的模式卡片
+            document.querySelectorAll('.mode-card').forEach(card => {
+                card.style.borderColor = 'var(--border-primary)';
+            });
+            const selectedCard = document.getElementById('mode-card-' + mode);
+            if (selectedCard) {
+                selectedCard.style.borderColor = 'var(--accent-primary)';
+            }
+            
+            if (mode === 'crawler') {
+                scanModeGroup.style.display = 'none';
+                crawlerRequirementGroup.style.display = 'block';
+                startBtn.textContent = '开始爬取';
+            } else if (mode === 'attack') {
+                scanModeGroup.style.display = 'block';
+                crawlerRequirementGroup.style.display = 'none';
+                startBtn.textContent = '开始攻击';
+            } else {
+                scanModeGroup.style.display = 'block';
+                crawlerRequirementGroup.style.display = 'none';
+                startBtn.textContent = '开始扫描';
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                
+                if (!settings.model && data.model) settings.model = data.model;
+                if (!settings.apiBase && data.api_base) settings.apiBase = data.api_base;
+                
+                if (data.api_key_configured && !settings.apiKey) {
+                    document.getElementById('setting-api-key').placeholder = "****** (configured on server)";
+                }
+            } catch (e) {
+                console.error("Failed to load config", e);
+            }
+        }
+
+        async function fetchModels() {
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = "Loading...";
+            btn.disabled = true;
+            
+            try {
+                // 使用当前输入框的值获取模型列表
+                const apiBase = document.getElementById('setting-api-base').value;
+                const apiKey = document.getElementById('setting-api-key').value;
+                
+                const params = new URLSearchParams();
+                if (apiBase) params.append('api_base', apiBase);
+                if (apiKey) params.append('api_key', apiKey);
+                
+                const res = await fetch('/api/models?' + params.toString());
+                const data = await res.json();
+                
+                const select = document.getElementById('setting-model');
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">-- Select a model --</option>';
+                
+                if (data.models && data.models.length > 0) {
+                    data.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        if (model === currentValue || model === settings.model) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                } else if (data.error) {
+                    alert(data.error);
+                }
+            } catch (e) {
+                console.error("Failed to fetch models", e);
+                alert("获取模型列表失败，请检查网络");
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function openSettings() {
+            loadConfig().then(async () => {
+                document.getElementById('setting-api-base').value = settings.apiBase;
+                document.getElementById('setting-api-key').value = settings.apiKey;
+                document.getElementById('settings-modal').classList.add('active');
+                
+                // 自动获取模型列表（使用已保存的配置）
+                try {
+                    const params = new URLSearchParams();
+                    if (settings.apiBase) params.append('api_base', settings.apiBase);
+                    if (settings.apiKey) params.append('api_key', settings.apiKey);
+                    
+                    const res = await fetch('/api/models?' + params.toString());
+                    const data = await res.json();
+                    
+                    const select = document.getElementById('setting-model');
+                    select.innerHTML = '<option value="">-- Select a model --</option>';
+                    
+                    if (data.models && data.models.length > 0) {
+                        data.models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model;
+                            option.textContent = model;
+                            if (model === settings.model) {
+                                option.selected = true;
+                            }
+                            select.appendChild(option);
+                        });
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch models", e);
+                    // 如果获取失败，至少显示当前保存的模型
+                    if (settings.model) {
+                        const select = document.getElementById('setting-model');
+                        const option = document.createElement('option');
+                        option.value = settings.model;
+                        option.textContent = settings.model;
+                        option.selected = true;
+                        select.appendChild(option);
+                    }
+                }
+            });
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+
+        function openHelp() {
+            document.getElementById('help-modal').classList.add('active');
+        }
+
+        function closeHelp() {
+            document.getElementById('help-modal').classList.remove('active');
+        }
+
+        async function saveSettings() {
+            settings.model = document.getElementById('setting-model').value.trim();
+            settings.apiBase = document.getElementById('setting-api-base').value.trim();
+            settings.apiKey = document.getElementById('setting-api-key').value.trim();
+            
+            // 保存到本地存储
+            localStorage.setItem('ulrattack_model', settings.model);
+            localStorage.setItem('ulrattack_api_base', settings.apiBase);
+            localStorage.setItem('ulrattack_api_key', settings.apiKey);
+            
+            // 同步到后端
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        model: settings.model,
+                        api_base: settings.apiBase,
+                        api_key: settings.apiKey
+                    })
+                });
+            } catch (e) {
+                console.error("Failed to save config to server", e);
+            }
+            
+            closeSettings();
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            socket.onopen = () => {
+                document.getElementById('connection-status').textContent = "Connected";
+                document.getElementById('status-dot').classList.add('connected');
+            };
+
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateUI(data);
+            };
+
+            socket.onclose = () => {
+                document.getElementById('connection-status').textContent = "Disconnected";
+                document.getElementById('status-dot').classList.remove('connected');
+                setTimeout(connectWebSocket, 2000);
+            };
+        }
+
+        async function startQuickScan() {
+            const quickInput = document.getElementById('target-quick-input');
+            const target = quickInput.value.trim();
+            if (!target) return;
+            
+            // 同步到隐藏的target input
+            document.getElementById('target-input').value = target;
+            
+            // 切换UI状态
+            document.querySelector('.welcome-screen').style.display = 'none';
+            document.getElementById('target-quick-input').parentElement.style.display = 'none';
+            document.getElementById('chat-input').style.display = 'block';
+            document.getElementById('chat-input').disabled = false;
+            
+            // 启动扫描
+            await startScan();
+        }
+        
+        async function startScanFromSidebar() {
+            // 检查是否已有目标
+            const target = document.getElementById('target-input').value.trim();
+            if (!target) {
+                // 如果没有目标，聚焦到中间的输入框
+                const quickInput = document.getElementById('target-quick-input');
+                if (quickInput) {
+                    quickInput.focus();
+                    quickInput.placeholder = "Please enter target URL first...";
+                }
+                return;
+            }
+            
+            // 切换UI状态
+            const welcomeScreen = document.querySelector('.welcome-screen');
+            if (welcomeScreen) welcomeScreen.style.display = 'none';
+            const quickInputWrapper = document.getElementById('target-quick-input');
+            if (quickInputWrapper && quickInputWrapper.parentElement) {
+                quickInputWrapper.parentElement.style.display = 'none';
+            }
+            document.getElementById('chat-input').style.display = 'block';
+            document.getElementById('chat-input').disabled = false;
+            
+            // 启动扫描
+            await startScan();
+        }
+
+        async function startScan() {
+            const target = document.getElementById('target-input').value;
+            const mode = document.getElementById('scan-mode').value;
+            const agentMode = currentAgentMode;
+            const crawlerRequirement = document.getElementById('crawler-requirement')?.value || '';
+            
+            if (!target) return;
+            
+            // 爬虫模式下验证是否输入了爬取需求
+            if (agentMode === 'crawler' && !crawlerRequirement.trim()) {
+                alert('请在左侧输入爬取需求，描述你想爬取的内容');
+                return;
+            }
+
+            // 如果是通过左侧按钮启动，也需要隐藏欢迎屏幕和快速输入框
+            document.querySelector('.welcome-screen').style.display = 'none';
+            const quickInputWrapper = document.getElementById('target-quick-input').parentElement;
+            if (quickInputWrapper) quickInputWrapper.style.display = 'none';
+            document.getElementById('chat-input').style.display = 'block';
+
+            try {
+                const response = await fetch('/api/start_scan', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        target, 
+                        scan_mode: mode,
+                        agent_mode: agentMode,
+                        crawler_requirement: crawlerRequirement,
+                        model: settings.model,
+                        api_base: settings.apiBase,
+                        api_key: settings.apiKey
+                    })
+                });
+                
+                const res = await response.json();
+                if (res.status === 'ok') {
+                    isScanning = true;
+                    document.getElementById('start-btn').disabled = true;
+                    document.getElementById('stop-btn').disabled = false;
+                    
+                    // 初始化消息容器
+                    const terminal = document.getElementById('terminal-output');
+                    terminal.innerHTML = '<div class="messages-container"><div class="message message-agent"><div class="message-content">Initializing scan...</div></div></div>';
+                    
+                    displayedEvents.clear();
+                } else if (res.status === 'error') {
+                    alert(res.message || '启动失败，请检查配置');
+                }
+            } catch (e) {
+                console.error('Start scan error:', e);
+                alert('启动失败，请检查网络连接');
+            }
+        }
+
+        async function stopScan() {
+            await fetch('/api/stop_scan', { method: 'POST' });
+            isScanning = false;
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('stop-btn').disabled = true;
+        }
+
+        async function handleInput(e) {
+            if (e.key === 'Enter') {
+                const input = document.getElementById('chat-input');
+                const message = input.value.trim();
+                if (message) {
+                    await fetch('/api/send_message', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ message, agent_id: selectedAgentId })
+                    });
+                    input.value = '';
+                }
+            }
+        }
+
+        function updateUI(data) {
+            // 检查是否有活跃的 Agent 或正在运行的任务
+            const hasActiveAgents = data.agents && Object.keys(data.agents).length > 0;
+            const isRunning = data.agents && Object.values(data.agents).some(a => a.status === 'running' || a.status === 'pending');
+            
+            // 强制 UI 状态同步
+            if (hasActiveAgents) {
+                const welcomeScreen = document.querySelector('.welcome-screen');
+                if (welcomeScreen && welcomeScreen.style.display !== 'none') {
+                    welcomeScreen.style.display = 'none';
+                }
+                
+                const quickInputWrapper = document.getElementById('target-quick-input').parentElement;
+                if (quickInputWrapper && quickInputWrapper.parentElement && quickInputWrapper.parentElement.style.display !== 'none') {
+                     // 注意：这里隐藏的是 .input-wrapper 的父元素还是 .input-wrapper 本身？
+                     // 根据 startScanFromSidebar 中的逻辑：
+                     // document.getElementById('target-quick-input').parentElement.style.display = 'none';
+                     // 这里的 parentElement 是 div.input-wrapper
+                     quickInputWrapper.style.display = 'none';
+                }
+
+                const chatInput = document.getElementById('chat-input');
+                if (chatInput && chatInput.style.display !== 'block') {
+                    chatInput.style.display = 'block';
+                    chatInput.disabled = false;
+                }
+                
+                // 同步扫描状态变量，以防页面刷新丢失
+                if (!isScanning) isScanning = true;
+                
+                // 更新停止按钮状态
+                const stopBtn = document.getElementById('stop-btn');
+                if (stopBtn) stopBtn.disabled = !isRunning;
+                
+                // 更新开始按钮状态
+                const startBtn = document.getElementById('start-btn');
+                if (startBtn) startBtn.disabled = isRunning;
+            }
+
+            document.getElementById('token-count').textContent = data.stats.total_tokens.toLocaleString();
+            document.getElementById('cost-estimate').textContent = `$${data.stats.cost}`;
+            document.getElementById('agent-count').textContent = Object.keys(data.agents).length;
+            document.getElementById('tool-count').textContent = data.stats.tool_count;
+
+            renderAgents(data.agents);
+            renderAgentTree(data.agents);  // 渲染右侧 Agent 树
+            renderVulnerabilities(data.vulnerabilities);
+
+            if (selectedAgentId && data.agents[selectedAgentId]) {
+                renderTerminal(data.events[selectedAgentId] || [], data.streaming_content[selectedAgentId]);
+            } else if (!selectedAgentId && Object.keys(data.agents).length > 0) {
+                selectAgent(Object.keys(data.agents)[0]);
+            }
+        }
+
+        // 渲染右侧 Agent 树形结构 (类似 TUI)
+        function renderAgentTree(agents) {
+            const container = document.getElementById('agent-tree-panel');
+            
+            if (Object.keys(agents).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <div class="empty-text">等待 Agent 启动...</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 构建树形结构
+            const agentList = Object.values(agents);
+            const rootAgents = agentList.filter(a => !a.parent_id);
+            const childrenMap = {};
+            
+            agentList.forEach(agent => {
+                if (agent.parent_id) {
+                    if (!childrenMap[agent.parent_id]) {
+                        childrenMap[agent.parent_id] = [];
+                    }
+                    childrenMap[agent.parent_id].push(agent);
+                }
+            });
+            
+            container.innerHTML = '';
+            
+            // 递归渲染树节点
+            function renderNode(agent, level = 0) {
+                const statusIcons = {
+                    'running': '🟢',
+                    'waiting': '🟡',
+                    'completed': '✅',
+                    'failed': '❌',
+                    'stopped': '⏹️',
+                    'stopping': '⏸️'
+                };
+                const statusIcon = statusIcons[agent.status] || '🔵';
+                
+                const nodeDiv = document.createElement('div');
+                nodeDiv.className = 'tree-node';
+                
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `tree-node-item ${level > 0 ? 'tree-connector' : ''} ${agent.id === selectedAgentId ? 'active' : ''}`;
+                itemDiv.innerHTML = `
+                    <span class="status-icon">${statusIcon}</span>
+                    <span class="agent-name" title="${agent.name}">${agent.name}</span>
+                `;
+                itemDiv.onclick = (e) => {
+                    e.stopPropagation();
+                    selectAgent(agent.id);
+                    // 更新树中的选中状态
+                    document.querySelectorAll('.tree-node-item').forEach(el => el.classList.remove('active'));
+                    itemDiv.classList.add('active');
+                };
+                
+                nodeDiv.appendChild(itemDiv);
+                
+                // 渲染子节点
+                const children = childrenMap[agent.id] || [];
+                if (children.length > 0) {
+                    const childrenDiv = document.createElement('div');
+                    childrenDiv.className = 'tree-children';
+                    children.forEach(child => {
+                        childrenDiv.appendChild(renderNode(child, level + 1));
+                    });
+                    nodeDiv.appendChild(childrenDiv);
+                }
+                
+                return nodeDiv;
+            }
+            
+            // 渲染所有根节点
+            rootAgents.forEach(agent => {
+                container.appendChild(renderNode(agent, 0));
+            });
+        }
+
+        function renderAgents(agents) {
+            const container = document.getElementById('agent-tree');
+            
+            if (Object.keys(agents).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <div class="empty-text">No active agents</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            Object.values(agents).forEach(agent => {
+                const div = document.createElement('div');
+                div.className = `agent-item ${agent.id === selectedAgentId ? 'active' : ''}`;
+                div.setAttribute('data-agent-id', agent.id);
+                
+                const statusClass = agent.status === 'running' ? 'running' : 
+                                  agent.status === 'completed' ? 'completed' : 'pending';
+                
+                // 状态图标
+                const statusIcons = {
+                    'running': '🟢',
+                    'waiting': '🟡',
+                    'completed': '✅',
+                    'failed': '❌',
+                    'stopped': '⏹️'
+                };
+                const statusIcon = statusIcons[agent.status] || '🔵';
+                
+                div.innerHTML = `
+                    <div class="agent-header">
+                        <div class="agent-name">${statusIcon} ${agent.name}</div>
+                        <div class="agent-status ${statusClass}">${agent.status}</div>
+                    </div>
+                    <div class="agent-meta">${agent.task ? agent.task.substring(0, 50) + '...' : agent.id}</div>
+                `;
+                div.onclick = () => {
+                    selectAgent(agent.id);
+                    // 更新左侧列表选中状态
+                    document.querySelectorAll('#agent-tree .agent-item').forEach(el => el.classList.remove('active'));
+                    div.classList.add('active');
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function selectAgent(agentId) {
+            selectedAgentId = agentId;
+            displayedEvents.clear(); 
+            lastContentHash = ""; // 重置hash以强制重新渲染
+            
+            // 更新左侧 agent 列表的选中状态
+            document.querySelectorAll('#agent-tree .agent-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // 更新右侧树的选中状态
+            document.querySelectorAll('.tree-node-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // 切换代理时保留消息容器结构
+            const terminal = document.getElementById('terminal-output');
+            terminal.innerHTML = '<div class="messages-container"></div>';
+        }
+
+        function renderTerminal(events, streamingContent) {
+            const container = document.getElementById('terminal-output');
+            
+            // 如果是第一次渲染，包裹一个容器
+            let msgContainer = container.querySelector('.messages-container');
+            if (!msgContainer) {
+                // 如果还显示着欢迎屏幕，不需要创建消息容器，除非有消息了
+                if (events.length > 0 || streamingContent) {
+                    container.innerHTML = '<div class="messages-container"></div>';
+                    msgContainer = container.querySelector('.messages-container');
+                } else {
+                    return; // 保持欢迎屏幕
+                }
+            }
+            
+            const currentHash = JSON.stringify(events) + (streamingContent || "");
+            if (currentHash === lastContentHash) return;
+            lastContentHash = currentHash;
+
+            msgContainer.innerHTML = '';
+
+            // 转义所有类似 XML/HTML 的自定义标签，防止被浏览器当做未知 HTML 元素隐藏
+            // 保留标准 Markdown 支持的 HTML 标签
+            function escapeCustomTags(content) {
+                if (!content) return '';
+                
+                // 匹配所有 <tagname...> 和 </tagname> 格式的标签
+                // 但保留常见的 HTML 标签 (a, b, i, em, strong, code, pre, p, br, hr, ul, ol, li, h1-h6, blockquote, img, table, tr, td, th, thead, tbody, div, span)
+                const htmlTags = /^(a|b|i|em|strong|code|pre|p|br|hr|ul|ol|li|h[1-6]|blockquote|img|table|tr|td|th|thead|tbody|div|span|details|summary)$/i;
+                
+                // 转义非标准 HTML 标签的开始标签
+                let result = content.replace(/<([a-zA-Z_][a-zA-Z0-9_-]*)([^>]*)>/g, (match, tagName, attrs) => {
+                    if (htmlTags.test(tagName)) {
+                        return match; // 保留标准 HTML 标签
+                    }
+                    return `&lt;${tagName}${attrs}&gt;`; // 转义自定义标签
+                });
+                
+                // 转义非标准 HTML 标签的结束标签
+                result = result.replace(/<\/([a-zA-Z_][a-zA-Z0-9_-]*)>/g, (match, tagName) => {
+                    if (htmlTags.test(tagName)) {
+                        return match;
+                    }
+                    return `&lt;/${tagName}&gt;`;
+                });
+                
+                return result;
+            }
+
+            events.forEach(event => {
+                const div = document.createElement('div');
+                div.className = 'message';
+                
+                if (event.type === 'chat') {
+                    div.className += event.role === 'user' ? ' message-user' : ' message-agent';
+                    // 转义自定义标签并渲染
+                    const formattedContent = escapeCustomTags(event.content);
+                    div.innerHTML = `
+                        <div class="message-header">${event.role === 'user' ? 'User' : 'Agent'}</div>
+                        <div class="message-content">${marked.parse(formattedContent)}</div>
+                    `;
+                } else if (event.type === 'tool') {
+                    div.className = 'tool-call';
+                    const statusIcon = event.status === 'completed' ? '✓' : 
+                                     event.status === 'failed' ? '✗' : '○';
+                    
+                    let resultHtml = '';
+                    if (event.result) {
+                        const resultStr = typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2);
+                        resultHtml = `<div class="tool-result">${resultStr}</div>`;
+                    }
+                    
+                    // 显示工具调用前的思考/指令内容
+                    let thoughtHtml = '';
+                    if (event.content || event.thought) {
+                        const thoughtText = event.content || event.thought;
+                        const formattedThought = escapeCustomTags(thoughtText);
+                        thoughtHtml = `<div class="message-content" style="margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">${marked.parse(formattedThought)}</div>`;
+                    }
+
+                    div.innerHTML = `
+                        ${thoughtHtml}
+                        <div class="tool-header">${statusIcon} ${event.tool_name}</div>
+                        ${resultHtml}
+                    `;
+                }
+                msgContainer.appendChild(div);
+            });
+
+            if (streamingContent) {
+                const div = document.createElement('div');
+                div.className = 'message message-agent streaming';
+                const formattedStream = escapeCustomTags(streamingContent);
+                div.innerHTML = `<div class="message-content">${marked.parse(formattedStream)}</div>`;
+                msgContainer.appendChild(div);
+            }
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function renderVulnerabilities(vulns) {
+            const container = document.getElementById('vuln-list');
+            
+            if (vulns.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <div class="empty-text">No vulnerabilities found</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = '';
+
+            vulns.forEach(vuln => {
+                const div = document.createElement('div');
+                div.className = 'vuln-item';
+                
+                div.innerHTML = `
+                    <div class="vuln-header">
+                        <div class="vuln-title">${vuln.title}</div>
+                        <span class="severity-badge severity-${vuln.severity.toLowerCase()}">${vuln.severity}</span>
+                    </div>
+                    ${vuln.endpoint ? `<div class="vuln-endpoint">${vuln.endpoint}</div>` : ''}
+                `;
+                div.onclick = () => showVulnDetail(vuln);
+                container.appendChild(div);
+            });
+        }
+
+        function showVulnDetail(vuln) {
+            document.getElementById('modal-title').textContent = vuln.title;
+            
+            let content = `<div class="vuln-header"><span class="severity-badge severity-${vuln.severity.toLowerCase()}">${vuln.severity}</span></div>\n\n`;
+            
+            if (vuln.endpoint) {
+                content += `**Endpoint:** \`${vuln.endpoint}\`\n\n`;
+            }
+            
+            content += `### Description\n${vuln.description}\n\n`;
+            
+            if (vuln.poc_script_code) {
+                content += `### Proof of Concept\n\`\`\`python\n${vuln.poc_script_code}\n\`\`\`\n\n`;
+            }
+            
+            if (vuln.remediation_steps) {
+                content += `### Remediation\n${vuln.remediation_steps}`;
+            }
+
+            document.getElementById('modal-body').innerHTML = marked.parse(content);
+            document.getElementById('vuln-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('vuln-modal').classList.remove('active');
+        }
+
+        connectWebSocket();
+    </script>
+</body>
+</html>

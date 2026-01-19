@@ -1,0 +1,152 @@
+<tools>
+  <tool name="finish_scan">
+    <description>Complete the security scan by providing the final assessment fields as full penetration test report.
+
+IMPORTANT: This tool can ONLY be used by the root/main agent.
+Subagents must use agent_finish from agents_graph tool instead.
+
+IMPORTANT: This tool will NOT allow finishing if any agents are still running or stopping.
+You must wait for all agents to complete before using this tool.
+
+This tool directly updates the scan report data:
+- executive_summary
+- methodology
+- technical_analysis
+- recommendations
+
+All fields are REQUIRED and map directly to the final report.
+
+This must be the last tool called in the scan. It will:
+1. Verify you are the root agent
+2. Check all subagents have completed
+3. Update the scan with your provided fields
+4. Mark the scan as completed
+5. Stop agent execution
+
+Use this tool when:
+- You are the main/root agent conducting the security assessment
+- ALL subagents have completed their tasks (no agents are "running" or "stopping")
+- You have completed all testing phases
+- You are ready to conclude the entire security assessment
+
+IMPORTANT: Calling this tool multiple times will OVERWRITE any previous scan report.
+Make sure you include ALL findings and details in a single comprehensive report.
+
+If agents are still running, the tool will:
+- Show you which agents are still active
+- Suggest using wait_for_message to wait for completion
+- Suggest messaging agents if immediate completion is needed
+
+NOTE: Make sure the vulnerabilities found were reported with create_vulnerability_report tool, otherwise they will not be tracked and you will not be rewarded.
+But make sure to not report the same vulnerability multiple times.
+
+Professional, customer-facing penetration test report rules (PDF-ready):
+- Do NOT include internal or system details: never mention local/absolute paths (e.g., "/workspace"), internal tools, agents, orchestrators, sandboxes, models, system prompts/instructions, connection/tooling issues, or tester environment details.
+- Tone and style: formal, objective, third-person, concise. No internal checklists or engineering runbooks. Content must read as a polished client deliverable.
+- Structure across fields should align to standard pentest reports:
+  - Executive summary: business impact, risk posture, notable criticals, remediation theme.
+  - Methodology: industry-standard methods (e.g., OWASP, OSSTMM, NIST), scope, constraints—no internal execution notes.
+  - Technical analysis: consolidated findings overview referencing created vulnerability reports; avoid raw logs.
+  - Recommendations: prioritized, actionable, aligned to risk and best practices.
+</description>
+    <parameters>
+      <parameter name="executive_summary" type="string" required="true">
+        <description>High-level summary for executives: key findings, overall security posture, critical risks, business impact</description>
+      </parameter>
+      <parameter name="methodology" type="string" required="true">
+        <description>Testing methodology: approach, tools used, scope, techniques employed</description>
+      </parameter>
+      <parameter name="technical_analysis" type="string" required="true">
+        <description>Detailed technical findings and security assessment results over the scan</description>
+      </parameter>
+      <parameter name="recommendations" type="string" required="true">
+        <description>Actionable security recommendations and remediation priorities</description>
+      </parameter>
+    </parameters>
+    <returns type="Dict[str, Any]">
+      <description>Response containing success status, vulnerability count, and completion message. If agents are still running, returns details about active agents and suggested actions.</description>
+    </returns>
+    <examples>
+
+<function=finish_scan>
+  <parameter=executive_summary>Executive summary
+An external penetration test of the Acme Customer Portal and associated API identified multiple security weaknesses that, if exploited, could result in unauthorized access to customer data, cross-tenant exposure, and access to internal network resources.
+
+Overall risk posture: Elevated.
+
+Key outcomes
+- Confirmed server-side request forgery (SSRF) in a URL preview capability that enables the application to initiate outbound requests to attacker-controlled destinations and internal network ranges.
+- Identified broken access control patterns in business-critical workflows that can enable cross-tenant data access (tenant isolation failures).
+- Observed session and authorization hardening gaps that materially increase risk when combined with other weaknesses.
+
+Business impact
+- Increased likelihood of sensitive data exposure across customers/tenants, including invoices, orders, and account information.
+- Increased risk of internal service exposure through server-side outbound request functionality (including link-local and private network destinations).
+- Increased potential for account compromise and administrative abuse if tokens are stolen or misused.
+
+Remediation theme
+Prioritize eliminating SSRF pathways and centralizing authorization enforcement (deny-by-default). Follow with session hardening and monitoring improvements, then validate with a focused retest.</parameter>
+  <parameter=methodology>Methodology
+The assessment followed industry-standard penetration testing practices aligned to OWASP Web Security Testing Guide (WSTG) concepts and common web/API security testing methodology.
+
+Engagement details
+- Assessment type: External penetration test (black-box with limited gray-box context)
+- Target environment: Production-equivalent staging
+
+Scope (in-scope assets)
+- Web application: https://app.acme-corp.com
+- API base: https://app.acme-corp.com/api/v1/
+
+High-level testing activities
+- Reconnaissance and attack-surface mapping (routes, parameters, workflows)
+- Authentication and session management review (token handling, session lifetime, sensitive actions)
+- Authorization and tenant-isolation testing (object access and privilege boundaries)
+- Input handling and server-side request testing (URL fetchers, imports, previews, callbacks)
+- File handling and content rendering review (uploads, previews, unsafe content types)
+- Configuration review (transport security, security headers, caching behavior, error handling)
+
+Evidence handling and validation standard
+Only validated issues with reproducible impact were treated as findings. Each finding was documented with clear reproduction steps and sufficient evidence to support remediation and verification testing.</parameter>
+  <parameter=technical_analysis>Technical analysis
+This section provides a consolidated view of the confirmed findings and observed risk patterns. Detailed reproduction steps and evidence are documented in the individual vulnerability reports.
+
+Severity model
+Severity reflects a combination of exploitability and potential impact to confidentiality, integrity, and availability, considering realistic attacker capabilities.
+
+Confirmed findings (high level)
+1) Server-side request forgery (SSRF) in URL preview (Critical)
+The application fetches user-supplied URLs server-side to generate previews. Validation controls were insufficient to prevent access to internal and link-local destinations. This creates a pathway to internal network enumeration and potential access to sensitive internal services. Redirect and DNS/normalization bypass risk must be assumed unless controls are comprehensive and applied on every request hop.
+
+2) Broken tenant isolation in order/invoice workflows (High)
+Multiple endpoints accepted object identifiers without consistently enforcing tenant ownership. This is indicative of broken function- and object-level authorization checks. In practice, this can enable cross-tenant access to business-critical resources (viewing or modifying data outside the attacker’s tenant boundary).
+
+3) Administrative action hardening gaps (Medium)
+Several sensitive actions lacked defense-in-depth controls (e.g., re-authentication for high-risk actions, consistent authorization checks across related endpoints, and protections against session misuse). While not all behaviors were immediately exploitable in isolation, they increase the likelihood and blast radius of account compromise when chained with other vulnerabilities.
+
+4) Unsafe file preview/content handling patterns (Medium)
+File preview and rendering behaviors can create exposure to script execution or content-type confusion if unsafe formats are rendered inline. Controls should be consistent: strong content-type validation, forced download where appropriate, and hardening against active content.
+
+Systemic themes and root causes
+- Authorization enforcement appears distributed and inconsistent across endpoints instead of centralized and testable.
+- Outbound request functionality lacks a robust, deny-by-default policy for destination validation.
+- Hardening controls (session lifetime, sensitive-action controls, logging) are applied unevenly, increasing the likelihood of successful attack chains.</parameter>
+  <parameter=recommendations>Recommendations
+Priority 0
+- Eliminate SSRF by implementing a strict destination allowlist and deny-by-default policy for outbound requests. Block private, loopback, and link-local ranges (IPv4 and IPv6) after DNS resolution. Re-validate on every redirect hop. Apply URL parsing/normalization safeguards against ambiguous encodings and unusual IP notations.
+- Apply network egress controls so the application runtime cannot reach sensitive internal ranges or link-local services. Route necessary outbound requests through a policy-enforcing egress proxy with logging.
+
+Priority 1
+- Centralize authorization enforcement for all object access and administrative actions. Implement consistent tenant-ownership checks for every read/write path involving orders, invoices, and account resources. Adopt deny-by-default authorization middleware/policies.
+- Add regression tests for authorization decisions, including cross-tenant negative cases and privilege-boundary testing for administrative endpoints.
+- Harden session management: secure cookie attributes, session rotation after authentication and privilege change events, reduced session lifetime for privileged contexts, and consistent CSRF protections for state-changing actions.
+
+Priority 2
+- Harden file handling and preview behaviors: strict content-type allowlists, forced download for active formats, safe rendering pipelines, and scanning/sanitization where applicable.
+- Improve monitoring and detection: alert on high-risk events such as repeated authorization failures, anomalous outbound fetch attempts, sensitive administrative actions, and unusual access patterns to business-critical resources.
+
+Follow-up validation
+- Conduct a targeted retest after remediation to confirm SSRF controls, tenant isolation enforcement, and session hardening, and to ensure no bypasses exist via redirects, DNS rebinding, or encoding edge cases.</parameter>
+</function>
+    </examples>
+  </tool>
+</tools>
