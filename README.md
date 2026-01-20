@@ -2,7 +2,7 @@
 
 <img src="ulrattack/log/log.png" alt="ULRATTACK Logo" width="200">
 
-# ULRATTACK（发作）
+# ULRATTACK（嘿客）
 
 **下一代 AI 自动化黑客与安全评估平台**
 
