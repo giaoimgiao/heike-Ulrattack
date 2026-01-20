@@ -74,13 +74,16 @@ async def get_index():
 
 import httpx
 import os
-
-# ...
+import ssl
+import socket
 
 class ConfigRequest(BaseModel):
     model: str = ""
     api_base: str = ""
     api_key: str = ""
+    timeout: int = 30
+    http2: bool = False
+    ssl_verify: bool = True
 
 @app.get("/api/config")
 async def get_config():
@@ -111,14 +114,104 @@ async def save_config(req: ConfigRequest):
         # Persist to config file
         save_current_config()
         
-        logging.info(f"Config saved: model={req.model}, api_base={req.api_base}, api_key={'***' if req.api_key else 'not set'}")
+        logging.info(f"Config saved: model={req.model}, api_base={req.api_base}, api_key={'***' if req.api_key else 'not set'}, timeout={req.timeout}s, http2={req.http2}, ssl_verify={req.ssl_verify}")
         return {"status": "ok"}
     except Exception as e:
         logging.error(f"Failed to save config: {e}")
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/test_connection")
+async def test_connection(
+    api_base: str = None,
+    timeout: int = 30,
+    http2: bool = False,
+    ssl_verify: bool = True
+):
+    """诊断 API 连接问题"""
+    base_url = api_base or Config.get("llm_api_base") or Config.get("litellm_base_url") or Config.get("openai_api_base")
+    
+    if not base_url:
+        return {"status": "error", "message": "未配置 API Base URL"}
+    
+    results = {
+        "url": base_url,
+        "dns_resolve": None,
+        "tcp_connect": None,
+        "ssl_handshake": None,
+        "http_request": None,
+    }
+    
+    try:
+        # 解析 URL
+        from urllib.parse import urlparse
+        parsed = urlparse(base_url)
+        host = parsed.hostname
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        
+        # 1. DNS 解析测试
+        try:
+            ip = socket.gethostbyname(host)
+            results["dns_resolve"] = f"✅ {host} -> {ip}"
+        except socket.gaierror as e:
+            results["dns_resolve"] = f"❌ DNS 解析失败: {e}"
+            return results
+        
+        # 2. TCP 连接测试
+        try:
+            sock = socket.create_connection((host, port), timeout=min(timeout, 15))
+            results["tcp_connect"] = f"✅ TCP 连接成功 ({host}:{port})"
+            sock.close()
+        except Exception as e:
+            results["tcp_connect"] = f"❌ TCP 连接失败: {e}"
+            return results
+        
+        # 3. SSL 握手测试 (如果是 HTTPS)
+        if parsed.scheme == "https":
+            try:
+                context = ssl.create_default_context()
+                if not ssl_verify:
+                    context.check_hostname = False
+                    context.verify_mode = ssl.CERT_NONE
+                with socket.create_connection((host, port), timeout=min(timeout, 15)) as sock:
+                    with context.wrap_socket(sock, server_hostname=host) as ssock:
+                        cert = ssock.getpeercert()
+                        results["ssl_handshake"] = f"✅ SSL 握手成功"
+            except ssl.SSLError as e:
+                results["ssl_handshake"] = f"❌ SSL 错误: {e}"
+                return results
+            except Exception as e:
+                results["ssl_handshake"] = f"❌ SSL 连接失败: {e}"
+                return results
+        else:
+            results["ssl_handshake"] = "⏭️ 跳过 (非 HTTPS)"
+        
+        # 4. HTTP 请求测试
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(float(timeout), connect=float(min(timeout, 15))),
+                verify=ssl_verify,
+                follow_redirects=True,
+                http2=http2,
+            ) as client:
+                url = f"{base_url.rstrip('/')}/models"
+                resp = await client.get(url, headers={"User-Agent": "ULRATTACK/1.0"})
+                results["http_request"] = f"✅ HTTP 请求成功: {resp.status_code}"
+        except Exception as e:
+            results["http_request"] = f"❌ HTTP 请求失败: {type(e).__name__}: {e}"
+        
+        return results
+        
+    except Exception as e:
+        return {"status": "error", "message": f"诊断失败: {e}", "results": results}
+
 @app.get("/api/models")
-async def get_models(api_base: str = None, api_key: str = None):
+async def get_models(
+    api_base: str = None, 
+    api_key: str = None,
+    timeout: int = 30,
+    http2: bool = False,
+    ssl_verify: bool = True
+):
     """获取可用模型列表，支持传入临时的 API 配置"""
     # 优先使用传入的参数，否则从配置读取
     base_url = api_base or Config.get("llm_api_base") or Config.get("litellm_base_url") or Config.get("openai_api_base")
@@ -130,24 +223,46 @@ async def get_models(api_base: str = None, api_key: str = None):
     try:
         # Standard /v1/models endpoint
         url = f"{base_url.rstrip('/')}/models"
-        headers = {}
+        headers = {
+            "User-Agent": "ULRATTACK/1.0",
+            "Accept": "application/json",
+        }
         if key:
             headers["Authorization"] = f"Bearer {key}"
+        
+        logging.info(f"Fetching models from: {url} (timeout={timeout}s, http2={http2}, ssl_verify={ssl_verify})")
+        
+        # 使用用户配置的网络参数
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(float(timeout), connect=float(min(timeout, 15))),
+            verify=ssl_verify,
+            follow_redirects=True,
+            http2=http2,
+        ) as client:
+            resp = await client.get(url, headers=headers)
+            logging.info(f"Models API response: {resp.status_code}")
             
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, headers=headers, timeout=10.0)
             if resp.status_code == 200:
                 data = resp.json()
                 # Compatible with OpenAI format { "data": [ {"id": "..."} ] }
                 if "data" in data and isinstance(data["data"], list):
-                    return {"models": [m["id"] for m in data["data"] if "id" in m]}
+                    models = [m["id"] for m in data["data"] if "id" in m]
+                    logging.info(f"Found {len(models)} models")
+                    return {"models": models}
                 return {"models": []}
             else:
-                logging.warning(f"Failed to fetch models: HTTP {resp.status_code}")
+                logging.warning(f"Failed to fetch models: HTTP {resp.status_code} - {resp.text[:200]}")
                 return {"models": [], "error": f"请求失败: HTTP {resp.status_code}"}
+                
+    except httpx.ConnectError as e:
+        logging.warning(f"Connection error fetching models: {e}")
+        return {"models": [], "error": f"连接失败: 无法连接到 {base_url}，请检查网络或 URL 是否正确"}
+    except httpx.TimeoutException as e:
+        logging.warning(f"Timeout fetching models: {e}")
+        return {"models": [], "error": f"连接超时 ({timeout}秒): 服务器响应太慢，请尝试增大超时时间"}
     except Exception as e:
-        logging.warning(f"Failed to fetch models: {e}")
-        return {"models": [], "error": f"请求失败: {str(e)}"}
+        logging.warning(f"Failed to fetch models: {type(e).__name__}: {e}")
+        return {"models": [], "error": f"请求失败: {type(e).__name__}: {str(e)}"}
 
 @app.post("/api/start_scan")
 async def start_scan(req: ScanRequest):

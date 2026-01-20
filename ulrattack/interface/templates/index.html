@@ -1200,12 +1200,27 @@ ULRATTACK
             </div>
             <div class="modal-body">
                 <div class="form-group">
+                    <label class="form-label">API 提供商前缀 <span style="color: var(--text-tertiary); font-weight: normal;">(第三方聚合 API 请选择 OpenAI)</span></label>
+                    <select id="setting-provider" onchange="updateModelPrefix()">
+                        <option value="openai/">OpenAI 兼容 (推荐第三方 API)</option>
+                        <option value="">无前缀 (官方 API)</option>
+                        <option value="anthropic/">Anthropic (Claude)</option>
+                        <option value="gemini/">Google AI Studio (Gemini)</option>
+                        <option value="vertex_ai/">Google Vertex AI</option>
+                        <option value="deepseek/">DeepSeek</option>
+                        <option value="ollama/">Ollama (本地)</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label class="form-label">LLM Model Name</label>
                     <div style="display: flex; gap: 8px;">
-                        <select id="setting-model" style="flex: 1;">
+                        <select id="setting-model" style="flex: 1;" onchange="updateModelWithPrefix()">
                             <option value="">-- Select a model --</option>
                         </select>
                         <button class="btn btn-secondary" onclick="fetchModels()" style="width: auto; padding: 10px 16px;">Refresh</button>
+                    </div>
+                    <div style="margin-top: 8px; padding: 8px 12px; background: var(--bg-tertiary); border-radius: var(--radius-md); font-family: monospace; font-size: 13px; color: var(--accent-success);" id="model-preview">
+                        最终模型名: <span id="final-model-name">-</span>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1216,6 +1231,44 @@ ULRATTACK
                     <label class="form-label">API Key</label>
                     <input type="password" id="setting-api-key" placeholder="sk-...">
                 </div>
+                
+                <!-- 高级网络设置 -->
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-primary);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <label class="form-label" style="margin-bottom: 0;">⚙️ 高级网络设置</label>
+                        <button type="button" onclick="toggleAdvancedSettings()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 12px;" id="advanced-toggle">
+                            展开 ▼
+                        </button>
+                    </div>
+                    <div id="advanced-settings" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">连接超时 (秒)</label>
+                            <input type="number" id="setting-timeout" placeholder="30" value="30" min="5" max="120" style="width: 100%;">
+                            <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">API 连接超时时间，网络慢时可以增大此值</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="setting-http2" style="width: auto;">
+                                启用 HTTP/2
+                            </label>
+                            <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">某些 API 服务器不支持 HTTP/2，如遇连接问题请关闭此选项</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="setting-ssl-verify" checked style="width: auto;">
+                                SSL 证书验证
+                            </label>
+                            <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">禁用可能解决某些 SSL 错误，但会降低安全性</div>
+                        </div>
+                        <div style="margin-top: 12px;">
+                            <button class="btn btn-secondary" onclick="testApiConnection()" style="width: 100%;">
+                                🔍 测试 API 连接
+                            </button>
+                            <div id="connection-test-result" style="margin-top: 8px; padding: 8px; border-radius: var(--radius-md); font-size: 12px; display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div style="display: flex; gap: 8px; margin-top: 24px;">
                     <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
                     <button class="btn btn-primary" onclick="saveSettings()">Save Configuration</button>
@@ -1287,6 +1340,17 @@ ULRATTACK
     <script>
         // 初始化 Lucide 图标
         lucide.createIcons();
+        
+        // 配置 marked 库，增强安全性
+        marked.setOptions({
+            // 不渲染 HTML 标签，转义它们
+            sanitize: false,  // deprecated, 但我们已经在 escapeHtmlForSafety 中处理了
+            // 启用 breaks，让单换行也换行显示
+            breaks: true,
+            // 禁用 HTML 渲染（marked v5+ 默认会转义 HTML）
+            mangle: false,
+            headerIds: false
+        });
 
         let socket;
         let isScanning = false;
@@ -1298,8 +1362,114 @@ ULRATTACK
         let settings = {
             model: localStorage.getItem('ulrattack_model') || '',
             apiBase: localStorage.getItem('ulrattack_api_base') || '',
-            apiKey: localStorage.getItem('ulrattack_api_key') || ''
+            apiKey: localStorage.getItem('ulrattack_api_key') || '',
+            provider: localStorage.getItem('ulrattack_provider') || 'openai/',
+            timeout: parseInt(localStorage.getItem('ulrattack_timeout')) || 30,
+            http2: localStorage.getItem('ulrattack_http2') === 'true',
+            sslVerify: localStorage.getItem('ulrattack_ssl_verify') !== 'false'  // 默认 true
         };
+        
+        // 当前选中的原始模型名（不带前缀）
+        let currentRawModel = '';
+        
+        // 切换高级设置显示
+        function toggleAdvancedSettings() {
+            const advSettings = document.getElementById('advanced-settings');
+            const toggleBtn = document.getElementById('advanced-toggle');
+            if (advSettings.style.display === 'none') {
+                advSettings.style.display = 'block';
+                toggleBtn.textContent = '收起 ▲';
+            } else {
+                advSettings.style.display = 'none';
+                toggleBtn.textContent = '展开 ▼';
+            }
+        }
+        
+        // 测试 API 连接
+        async function testApiConnection() {
+            const resultDiv = document.getElementById('connection-test-result');
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'var(--bg-tertiary)';
+            resultDiv.style.color = 'var(--text-secondary)';
+            resultDiv.innerHTML = '🔄 测试中...';
+            
+            const apiBase = document.getElementById('setting-api-base').value.trim();
+            if (!apiBase) {
+                resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+                resultDiv.style.color = 'var(--accent-danger)';
+                resultDiv.innerHTML = '❌ 请先填写 API Base URL';
+                return;
+            }
+            
+            try {
+                const timeout = document.getElementById('setting-timeout').value || 30;
+                const http2 = document.getElementById('setting-http2').checked;
+                const sslVerify = document.getElementById('setting-ssl-verify').checked;
+                
+                const params = new URLSearchParams({
+                    api_base: apiBase,
+                    timeout: timeout,
+                    http2: http2,
+                    ssl_verify: sslVerify
+                });
+                
+                const res = await fetch('/api/test_connection?' + params.toString());
+                const data = await res.json();
+                
+                let html = '';
+                let allSuccess = true;
+                
+                for (const [key, value] of Object.entries(data)) {
+                    if (key === 'url' || key === 'status' || key === 'message') continue;
+                    if (value && value.startsWith('❌')) allSuccess = false;
+                    html += `<div>${value}</div>`;
+                }
+                
+                if (allSuccess) {
+                    resultDiv.style.background = 'rgba(34, 197, 94, 0.1)';
+                    resultDiv.style.color = 'var(--accent-success)';
+                } else {
+                    resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+                    resultDiv.style.color = 'var(--accent-danger)';
+                }
+                resultDiv.innerHTML = html || data.message || '测试完成';
+                
+            } catch (e) {
+                resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+                resultDiv.style.color = 'var(--accent-danger)';
+                resultDiv.innerHTML = `❌ 测试失败: ${e.message}`;
+            }
+        }
+        
+        // 更新模型前缀预览
+        function updateModelPrefix() {
+            updateFinalModelName();
+        }
+        
+        // 当模型选择变化时更新
+        function updateModelWithPrefix() {
+            const select = document.getElementById('setting-model');
+            currentRawModel = select.value;
+            updateFinalModelName();
+        }
+        
+        // 更新最终模型名显示
+        function updateFinalModelName() {
+            const provider = document.getElementById('setting-provider').value;
+            const finalName = provider + currentRawModel;
+            document.getElementById('final-model-name').textContent = finalName || '-';
+        }
+        
+        // 从完整模型名中提取前缀和原始模型名
+        function parseModelName(fullModel) {
+            const prefixes = ['openai/', 'anthropic/', 'gemini/', 'vertex_ai/', 'deepseek/', 'ollama/'];
+            for (const prefix of prefixes) {
+                if (fullModel.startsWith(prefix)) {
+                    return { provider: prefix, rawModel: fullModel.substring(prefix.length) };
+                }
+            }
+            return { provider: '', rawModel: fullModel };
+        }
 
         // Agent 模式选择函数
         function selectMode(mode) {
@@ -1385,16 +1555,22 @@ ULRATTACK
                 // 使用当前输入框的值获取模型列表
                 const apiBase = document.getElementById('setting-api-base').value;
                 const apiKey = document.getElementById('setting-api-key').value;
+                const timeout = document.getElementById('setting-timeout').value || 30;
+                const http2 = document.getElementById('setting-http2').checked;
+                const sslVerify = document.getElementById('setting-ssl-verify').checked;
                 
                 const params = new URLSearchParams();
                 if (apiBase) params.append('api_base', apiBase);
                 if (apiKey) params.append('api_key', apiKey);
+                params.append('timeout', timeout);
+                params.append('http2', http2);
+                params.append('ssl_verify', sslVerify);
                 
                 const res = await fetch('/api/models?' + params.toString());
                 const data = await res.json();
                 
                 const select = document.getElementById('setting-model');
-                const currentValue = select.value;
+                const currentValue = select.value || currentRawModel;
                 select.innerHTML = '<option value="">-- Select a model --</option>';
                 
                 if (data.models && data.models.length > 0) {
@@ -1402,11 +1578,14 @@ ULRATTACK
                         const option = document.createElement('option');
                         option.value = model;
                         option.textContent = model;
-                        if (model === currentValue || model === settings.model) {
+                        if (model === currentValue) {
                             option.selected = true;
+                            currentRawModel = model;
                         }
                         select.appendChild(option);
                     });
+                    // 更新预览
+                    updateFinalModelName();
                 } else if (data.error) {
                     alert(data.error);
                 }
@@ -1423,6 +1602,15 @@ ULRATTACK
             loadConfig().then(async () => {
                 document.getElementById('setting-api-base').value = settings.apiBase;
                 document.getElementById('setting-api-key').value = settings.apiKey;
+                
+                // 解析已保存的模型名，分离前缀和原始模型名
+                const parsed = parseModelName(settings.model);
+                settings.provider = parsed.provider || 'openai/';
+                currentRawModel = parsed.rawModel;
+                
+                // 设置提供商选择器
+                document.getElementById('setting-provider').value = settings.provider;
+                
                 document.getElementById('settings-modal').classList.add('active');
                 
                 // 自动获取模型列表（使用已保存的配置）
@@ -1442,24 +1630,45 @@ ULRATTACK
                             const option = document.createElement('option');
                             option.value = model;
                             option.textContent = model;
-                            if (model === settings.model) {
+                            // 用原始模型名匹配
+                            if (model === currentRawModel) {
                                 option.selected = true;
                             }
                             select.appendChild(option);
                         });
                     }
+                    
+                    // 如果模型列表中没有当前模型，手动添加
+                    if (currentRawModel && !data.models?.includes(currentRawModel)) {
+                        const option = document.createElement('option');
+                        option.value = currentRawModel;
+                        option.textContent = currentRawModel;
+                        option.selected = true;
+                        select.appendChild(option);
+                    }
                 } catch (e) {
                     console.error("Failed to fetch models", e);
                     // 如果获取失败，至少显示当前保存的模型
-                    if (settings.model) {
+                    if (currentRawModel) {
                         const select = document.getElementById('setting-model');
                         const option = document.createElement('option');
-                        option.value = settings.model;
-                        option.textContent = settings.model;
+                        option.value = currentRawModel;
+                        option.textContent = currentRawModel;
                         option.selected = true;
                         select.appendChild(option);
                     }
                 }
+                
+                // 更新最终模型名预览
+                updateFinalModelName();
+                
+                // 加载高级设置
+                document.getElementById('setting-timeout').value = settings.timeout || 30;
+                document.getElementById('setting-http2').checked = settings.http2 || false;
+                document.getElementById('setting-ssl-verify').checked = settings.sslVerify !== false;
+                
+                // 重置测试结果显示
+                document.getElementById('connection-test-result').style.display = 'none';
             });
         }
 
@@ -1476,14 +1685,29 @@ ULRATTACK
         }
 
         async function saveSettings() {
-            settings.model = document.getElementById('setting-model').value.trim();
+            // 获取提供商前缀和原始模型名
+            const provider = document.getElementById('setting-provider').value;
+            const rawModel = document.getElementById('setting-model').value.trim();
+            
+            // 组合完整模型名
+            settings.model = provider + rawModel;
+            settings.provider = provider;
             settings.apiBase = document.getElementById('setting-api-base').value.trim();
             settings.apiKey = document.getElementById('setting-api-key').value.trim();
             
+            // 获取高级设置
+            settings.timeout = parseInt(document.getElementById('setting-timeout').value) || 30;
+            settings.http2 = document.getElementById('setting-http2').checked;
+            settings.sslVerify = document.getElementById('setting-ssl-verify').checked;
+            
             // 保存到本地存储
             localStorage.setItem('ulrattack_model', settings.model);
+            localStorage.setItem('ulrattack_provider', settings.provider);
             localStorage.setItem('ulrattack_api_base', settings.apiBase);
             localStorage.setItem('ulrattack_api_key', settings.apiKey);
+            localStorage.setItem('ulrattack_timeout', settings.timeout.toString());
+            localStorage.setItem('ulrattack_http2', settings.http2.toString());
+            localStorage.setItem('ulrattack_ssl_verify', settings.sslVerify.toString());
             
             // 同步到后端
             try {
@@ -1491,9 +1715,12 @@ ULRATTACK
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        model: settings.model,
+                        model: settings.model,  // 发送完整模型名（带前缀）
                         api_base: settings.apiBase,
-                        api_key: settings.apiKey
+                        api_key: settings.apiKey,
+                        timeout: settings.timeout,
+                        http2: settings.http2,
+                        ssl_verify: settings.sslVerify
                     })
                 });
             } catch (e) {
@@ -1919,32 +2146,27 @@ ULRATTACK
 
             msgContainer.innerHTML = '';
 
-            // 转义所有类似 XML/HTML 的自定义标签，防止被浏览器当做未知 HTML 元素隐藏
-            // 保留标准 Markdown 支持的 HTML 标签
-            function escapeCustomTags(content) {
+            // 安全转义 HTML，防止 XSS 攻击
+            // 由于 Agent 返回的内容可能包含攻击 payload，必须转义所有 HTML
+            function escapeHtmlForSafety(content) {
                 if (!content) return '';
                 
-                // 匹配所有 <tagname...> 和 </tagname> 格式的标签
-                // 但保留常见的 HTML 标签 (a, b, i, em, strong, code, pre, p, br, hr, ul, ol, li, h1-h6, blockquote, img, table, tr, td, th, thead, tbody, div, span)
-                const htmlTags = /^(a|b|i|em|strong|code|pre|p|br|hr|ul|ol|li|h[1-6]|blockquote|img|table|tr|td|th|thead|tbody|div|span|details|summary)$/i;
+                // 第一步：转义所有 < 和 > 防止任何 HTML/脚本执行
+                let result = content
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
                 
-                // 转义非标准 HTML 标签的开始标签
-                let result = content.replace(/<([a-zA-Z_][a-zA-Z0-9_-]*)([^>]*)>/g, (match, tagName, attrs) => {
-                    if (htmlTags.test(tagName)) {
-                        return match; // 保留标准 HTML 标签
-                    }
-                    return `&lt;${tagName}${attrs}&gt;`; // 转义自定义标签
-                });
-                
-                // 转义非标准 HTML 标签的结束标签
-                result = result.replace(/<\/([a-zA-Z_][a-zA-Z0-9_-]*)>/g, (match, tagName) => {
-                    if (htmlTags.test(tagName)) {
-                        return match;
-                    }
-                    return `&lt;/${tagName}&gt;`;
-                });
+                // 第二步：还原 Markdown 代码块语法（```），这样 marked 可以正确渲染代码块
+                // 代码块内的内容本身就是安全的，因为 marked 会把它放在 <code> 里并转义
+                // 不需要做任何事，因为我们转义的是原始内容，marked 会处理 Markdown 语法
                 
                 return result;
+            }
+            
+            // 为了向后兼容，保留旧函数名但使用安全版本
+            function escapeCustomTags(content) {
+                return escapeHtmlForSafety(content);
             }
 
             events.forEach(event => {

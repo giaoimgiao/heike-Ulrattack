@@ -156,7 +156,9 @@ class LLM:
         )
 
     def _prepare_messages(self, conversation_history: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        messages = [{"role": "system", "content": self.system_prompt}]
+        # Gemini API 不允许空的 system instruction，如果为空则使用默认值
+        system_content = self.system_prompt if self.system_prompt and self.system_prompt.strip() else "You are a helpful AI assistant."
+        messages = [{"role": "system", "content": system_content}]
 
         if self.agent_name:
             messages.append(
@@ -175,7 +177,14 @@ class LLM:
         compressed = list(self.memory_compressor.compress_history(conversation_history))
         conversation_history.clear()
         conversation_history.extend(compressed)
-        messages.extend(compressed)
+        
+        # 过滤掉空消息，Gemini API 不允许空的 content
+        for msg in compressed:
+            content = msg.get("content", "")
+            # 如果 content 是字符串且为空，跳过；如果是列表则保留
+            if isinstance(content, str) and not content.strip():
+                continue
+            messages.append(msg)
 
         if self._is_anthropic() and self.config.enable_prompt_caching:
             messages = self._add_cache_control(messages)
