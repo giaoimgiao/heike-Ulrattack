@@ -57,8 +57,8 @@ if %errorlevel% neq 0 (
 REM 检查 ulrattack 是否已安装
 %PYTHON_CMD% -m pip show ulrattack-agent >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [..] 正在安装 ULRATTACK...
-    %PYTHON_CMD% -m pip install ulrattack-agent
+    echo  [..] 正在从 GitHub 安装 ULRATTACK...
+    %PYTHON_CMD% -m pip install git+https://github.com/giaoimgiao/heike-Ulrattack.git -i https://pypi.tuna.tsinghua.edu.cn/simple
     if %errorlevel% neq 0 (
         echo  [X] 错误: 安装失败
         pause
