@@ -146,6 +146,19 @@ class DockerRuntime(AbstractRuntime):
                 self._tool_server_port = tool_server_port
                 self._tool_server_token = tool_server_token
 
+                # 准备 volume 映射：将宿主机的 ulrattack_runs 映射到容器的 /workspace/ulrattack_runs
+                host_runs_dir = Path.cwd() / "ulrattack_runs"
+                host_runs_dir.mkdir(parents=True, exist_ok=True)
+                
+                volumes = {
+                    str(host_runs_dir.resolve()): {
+                        'bind': '/workspace/ulrattack_runs',
+                        'mode': 'rw'
+                    }
+                }
+                
+                logger.info(f"Mapping host directory {host_runs_dir} to container /workspace/ulrattack_runs")
+
                 container = self.client.containers.run(
                     image_name,
                     command="sleep infinity",
@@ -166,11 +179,12 @@ class DockerRuntime(AbstractRuntime):
                         "HOST_GATEWAY": HOST_GATEWAY_HOSTNAME,
                     },
                     extra_hosts=self._get_extra_hosts(),
+                    volumes=volumes,
                     tty=True,
                 )
 
                 self._scan_container = container
-                logger.info("Created container %s for scan %s", container.id, scan_id)
+                logger.info("Created container %s for scan %s with volume mapping", container.id, scan_id)
 
                 self._initialize_container(
                     container, caido_port, tool_server_port, tool_server_token
