@@ -63,15 +63,9 @@ ULRATTACK 提供三种核心 Agent 模式，满足全方位的安全测试需求
 
 #### 前提条件
 
-运行 ULRATTACK 需要以下环境：
-
-*   Docker Desktop (必须运行中)
-*   Python 3.10+
-*   LLM API 密钥
 *   **💡 Windows 懒人包**：不想配置环境？[点击获取一键运行版 EXE](https://hideepseek.lanzouq.com/ijLLj3h0utej)
 
-
-运行 ULRATTACK 需要以下环境：
+*   或者手动部署:
 
 *   **Docker Desktop** (必须运行中)
     *   [下载 Docker Desktop](https://www.docker.com/products/docker-desktop/)
