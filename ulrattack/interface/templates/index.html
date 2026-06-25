@@ -1336,27 +1336,37 @@ ULRATTACK
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         // 初始化 Lucide 图标
         lucide.createIcons();
-        
-        // 配置 marked 库，增强安全性
+
+        // 配置 marked 库
         marked.setOptions({
-            // 不渲染 HTML 标签，转义它们
-            sanitize: false,  // deprecated, 但我们已经在 escapeHtmlForSafety 中处理了
-            // 启用 breaks，让单换行也换行显示
             breaks: true,
-            // 禁用 HTML 渲染（marked v5+ 默认会转义 HTML）
             mangle: false,
             headerIds: false
         });
 
+        // 安全的 Markdown 渲染：raw markdown → marked.parse() → DOMPurify.sanitize()
+        // 不需要预转义，DOMPurify 在 HTML 层面防御所有 XSS 向量
+        function sanitizeMarkdown(rawContent) {
+            if (!rawContent) return '';
+            if (typeof rawContent !== 'string') rawContent = String(rawContent);
+            try {
+                const html = marked.parse(rawContent);
+                return window.DOMPurify ? DOMPurify.sanitize(html) : html;
+            } catch (e) {
+                return DOMPurify.sanitize(rawContent);
+            }
+        }
+
         let socket;
         let isScanning = false;
         let selectedAgentId = null;
-        let displayedEvents = new Set();
-        let lastContentHash = "";
+        let agentDisplayedEvents = {};      // { agentId: Set of event ids }
+        let agentContentHashes = {};       // { agentId: contentHash }
         let currentAgentMode = 'pentest'; // 当前选择的 Agent 模式
         
         let settings = {
@@ -1841,7 +1851,8 @@ ULRATTACK
                     const terminal = document.getElementById('terminal-output');
                     terminal.innerHTML = '<div class="messages-container"><div class="message message-agent"><div class="message-content">Initializing scan...</div></div></div>';
                     
-                    displayedEvents.clear();
+                    agentDisplayedEvents = {};
+                    agentContentHashes = {};
                 } else if (res.status === 'error') {
                     alert(res.message || '启动失败，请检查配置');
                 }
@@ -1942,7 +1953,10 @@ ULRATTACK
             renderVulnerabilities(data.vulnerabilities);
 
             if (selectedAgentId && data.agents[selectedAgentId]) {
-                renderTerminal(data.events[selectedAgentId] || [], data.streaming_content[selectedAgentId]);
+                renderTerminal(
+                    data.events[selectedAgentId] || [],
+                    data.streaming_content[selectedAgentId]
+                );
             } else if (!selectedAgentId && Object.keys(data.agents).length > 0) {
                 selectAgent(Object.keys(data.agents)[0]);
             }
@@ -2000,9 +2014,9 @@ ULRATTACK
                 itemDiv.className = `tree-node-item ${level > 0 ? 'tree-connector' : ''} ${agent.id === selectedAgentId ? 'active' : ''}`;
                 itemDiv.innerHTML = `
                     <span class="status-icon">${statusIcon}</span>
-                    <span class="agent-name" title="${agent.name}">${agent.name}</span>
+                    <span class="agent-name" title="${escapeHtmlText(agent.name)}">${escapeHtmlText(agent.name)}</span>
                     ${agent.status === 'running' || agent.status === 'waiting' ? `
-                        <button class="stop-agent-btn" data-agent-id="${agent.id}" title="停止此 Agent">
+                        <button class="stop-agent-btn" data-agent-id="${escapeHtmlText(agent.id)}" title="停止此 Agent">
                             ⏹️
                         </button>
                     ` : ''}
@@ -2090,10 +2104,10 @@ ULRATTACK
                 
                 div.innerHTML = `
                     <div class="agent-header">
-                        <div class="agent-name">${statusIcon} ${agent.name}</div>
-                        <div class="agent-status ${statusClass}">${agent.status}</div>
+                        <div class="agent-name">${statusIcon} ${escapeHtmlText(agent.name)}</div>
+                        <div class="agent-status ${statusClass}">${escapeHtmlText(agent.status)}</div>
                     </div>
-                    <div class="agent-meta">${agent.task ? agent.task.substring(0, 50) + '...' : agent.id}</div>
+                    <div class="agent-meta">${escapeHtmlText(agent.task ? agent.task.substring(0, 50) + '...' : agent.id)}</div>
                 `;
                 div.onclick = () => {
                     selectAgent(agent.id);
@@ -2107,31 +2121,30 @@ ULRATTACK
 
         function selectAgent(agentId) {
             selectedAgentId = agentId;
-            displayedEvents.clear(); 
-            lastContentHash = ""; // 重置hash以强制重新渲染
-            
+            agentContentHashes[agentId] = ""; // 强制该 Agent 下次全量渲染
+
             // 更新左侧 agent 列表的选中状态
-            document.querySelectorAll('#agent-tree .agent-item').forEach(el => {
+            document.querySelectorAll('#agent-tree .agent-item').forEach(function (el) {
                 el.classList.remove('active');
             });
-            
+
             // 更新右侧树的选中状态
-            document.querySelectorAll('.tree-node-item').forEach(el => {
+            document.querySelectorAll('.tree-node-item').forEach(function (el) {
                 el.classList.remove('active');
             });
-            
+
             // 切换代理时保留消息容器结构
-            const terminal = document.getElementById('terminal-output');
+            var terminal = document.getElementById('terminal-output');
             terminal.innerHTML = '<div class="messages-container"></div>';
         }
 
         function renderTerminal(events, streamingContent) {
-            const container = document.getElementById('terminal-output');
-            
-            // 如果是第一次渲染，包裹一个容器
-            let msgContainer = container.querySelector('.messages-container');
+            var container = document.getElementById('terminal-output');
+            var agentId = selectedAgentId;
+
+            // 首次渲染时创建消息容器
+            var msgContainer = container.querySelector('.messages-container');
             if (!msgContainer) {
-                // 如果还显示着欢迎屏幕，不需要创建消息容器，除非有消息了
                 if (events.length > 0 || streamingContent) {
                     container.innerHTML = '<div class="messages-container"></div>';
                     msgContainer = container.querySelector('.messages-container');
@@ -2139,85 +2152,93 @@ ULRATTACK
                     return; // 保持欢迎屏幕
                 }
             }
-            
-            const currentHash = JSON.stringify(events) + (streamingContent || "");
-            if (currentHash === lastContentHash) return;
-            lastContentHash = currentHash;
 
+            // per-agent 内容哈希去重——同一份数据绝不重新渲染
+            var currentHash = JSON.stringify(events) + (streamingContent || '');
+            var prevHash = agentContentHashes[agentId] || '';
+            if (currentHash === prevHash) return;
+            agentContentHashes[agentId] = currentHash;
+
+            // 初始化该 agent 的 displayedEvents
+            if (!agentDisplayedEvents[agentId]) {
+                agentDisplayedEvents[agentId] = new Set();
+            }
+            var displayedSet = agentDisplayedEvents[agentId];
+
+            // —— 全量重建 DOM ——
             msgContainer.innerHTML = '';
+            var fragment = document.createDocumentFragment();
+            displayedSet.clear();
 
-            // 安全转义 HTML，防止 XSS 攻击
-            // 由于 Agent 返回的内容可能包含攻击 payload，必须转义所有 HTML
-            function escapeHtmlForSafety(content) {
-                if (!content) return '';
-                
-                // 第一步：转义所有 < 和 > 防止任何 HTML/脚本执行
-                let result = content
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
-                
-                // 第二步：还原 Markdown 代码块语法（```），这样 marked 可以正确渲染代码块
-                // 代码块内的内容本身就是安全的，因为 marked 会把它放在 <code> 里并转义
-                // 不需要做任何事，因为我们转义的是原始内容，marked 会处理 Markdown 语法
-                
-                return result;
-            }
-            
-            // 为了向后兼容，保留旧函数名但使用安全版本
-            function escapeCustomTags(content) {
-                return escapeHtmlForSafety(content);
-            }
-
-            events.forEach(event => {
-                const div = document.createElement('div');
-                div.className = 'message';
-                
-                if (event.type === 'chat') {
-                    div.className += event.role === 'user' ? ' message-user' : ' message-agent';
-                    // 转义自定义标签并渲染
-                    const formattedContent = escapeCustomTags(event.content);
-                    div.innerHTML = `
-                        <div class="message-header">${event.role === 'user' ? 'User' : 'Agent'}</div>
-                        <div class="message-content">${marked.parse(formattedContent)}</div>
-                    `;
-                } else if (event.type === 'tool') {
-                    div.className = 'tool-call';
-                    const statusIcon = event.status === 'completed' ? '✓' : 
-                                     event.status === 'failed' ? '✗' : '○';
-                    
-                    let resultHtml = '';
-                    if (event.result) {
-                        const resultStr = typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2);
-                        resultHtml = `<div class="tool-result">${resultStr}</div>`;
-                    }
-                    
-                    // 显示工具调用前的思考/指令内容
-                    let thoughtHtml = '';
-                    if (event.content || event.thought) {
-                        const thoughtText = event.content || event.thought;
-                        const formattedThought = escapeCustomTags(thoughtText);
-                        thoughtHtml = `<div class="message-content" style="margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">${marked.parse(formattedThought)}</div>`;
-                    }
-
-                    div.innerHTML = `
-                        ${thoughtHtml}
-                        <div class="tool-header">${statusIcon} ${event.tool_name}</div>
-                        ${resultHtml}
-                    `;
-                }
-                msgContainer.appendChild(div);
+            events.forEach(function (event) {
+                var div = renderEventDiv(event);
+                fragment.appendChild(div);
+                displayedSet.add(event.id);
             });
 
+            msgContainer.appendChild(fragment);
+
+            // 流式内容：复用同一个 DOM 节点
+            var streamingEl = msgContainer.querySelector('.message.streaming');
             if (streamingContent) {
-                const div = document.createElement('div');
-                div.className = 'message message-agent streaming';
-                const formattedStream = escapeCustomTags(streamingContent);
-                div.innerHTML = `<div class="message-content">${marked.parse(formattedStream)}</div>`;
-                msgContainer.appendChild(div);
+                if (!streamingEl) {
+                    streamingEl = document.createElement('div');
+                    streamingEl.className = 'message message-agent streaming';
+                    msgContainer.appendChild(streamingEl);
+                }
+                streamingEl.innerHTML = '<div class="message-content">' + sanitizeMarkdown(streamingContent) + '</div>';
+            } else if (streamingEl) {
+                streamingEl.classList.remove('streaming');
             }
 
-            container.scrollTop = container.scrollHeight;
+            // requestAnimationFrame 包裹滚动，避免 layout thrashing
+            requestAnimationFrame(function () {
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        // 将单个事件渲染为 DOM 元素
+        function renderEventDiv(event) {
+            var div = document.createElement('div');
+            div.className = 'message';
+
+            if (event.type === 'chat') {
+                div.className += event.role === 'user' ? ' message-user' : ' message-agent';
+                div.innerHTML = '<div class="message-header">' +
+                    (event.role === 'user' ? 'User' : 'Agent') +
+                    '</div>' +
+                    '<div class="message-content">' + sanitizeMarkdown(event.content) + '</div>';
+            } else if (event.type === 'tool') {
+                div.className = 'tool-call';
+                var statusIcon = event.status === 'completed' ? '\u2713' :
+                    event.status === 'failed' ? '\u2717' : '\u25CB';
+
+                var resultHtml = '';
+                if (event.result) {
+                    var resultStr = typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2);
+                    resultHtml = '<div class="tool-result"><pre>' + escapeHtmlText(resultStr) + '</pre></div>';
+                }
+
+                var thoughtHtml = '';
+                if (event.content || event.thought) {
+                    var thoughtText = event.content || event.thought;
+                    thoughtHtml = '<div class="message-content" style="margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">' +
+                        sanitizeMarkdown(thoughtText) + '</div>';
+                }
+
+                div.innerHTML = thoughtHtml +
+                    '<div class="tool-header">' + statusIcon + ' ' + escapeHtmlText(event.tool_name || '') + '</div>' +
+                    resultHtml;
+            }
+            return div;
+        }
+
+        // 纯文本安全转义 — 用于非 Markdown 内容
+        function escapeHtmlText(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
         }
 
         function renderVulnerabilities(vulns) {
@@ -2273,7 +2294,7 @@ ULRATTACK
                 content += `### Remediation\n${vuln.remediation_steps}`;
             }
 
-            document.getElementById('modal-body').innerHTML = marked.parse(content);
+            document.getElementById('modal-body').innerHTML = sanitizeMarkdown(content);
             document.getElementById('vuln-modal').classList.add('active');
         }
 

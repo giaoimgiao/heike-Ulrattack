@@ -3,6 +3,8 @@ import json
 import logging
 from typing import Any, List
 
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -62,6 +64,26 @@ class ScanRequest(BaseModel):
 class ChatMessage(BaseModel):
     message: str
     agent_id: str
+
+
+class ContextEditRequest(BaseModel):
+    index: int
+    content: str
+
+
+class ContextTruncateRequest(BaseModel):
+    from_index: int
+
+
+class RegenerateRequest(BaseModel):
+    from_index: int | None = None
+
+
+class SwitchModelRequest(BaseModel):
+    model: str
+    api_base: str = ""
+    api_key: str = ""
+    agent_id: str = ""
 
 # 静态文件服务 - 用于加载logo图片
 app.mount("/static", StaticFiles(directory="ulrattack/log"), name="static")
@@ -438,15 +460,98 @@ async def send_message(msg: ChatMessage):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
+@app.get("/api/runtime_model")
+async def get_runtime_model():
+    from ulrattack.interface.agent_context import get_runtime_model_info
+
+    info = get_runtime_model_info()
+    return {"status": "ok", **info}
+
+
+@app.post("/api/switch_model")
+async def switch_model(req: SwitchModelRequest):
+    from ulrattack.interface.agent_context import switch_runtime_model
+
+    result = switch_runtime_model(
+        req.model,
+        api_base=req.api_base or None,
+        api_key=req.api_key or None,
+        agent_id=req.agent_id or None,
+    )
+    if result.get("success"):
+        return {"status": "ok", **result}
+    return {"status": "error", "message": result.get("error", "切换失败")}
+
+
+@app.get("/api/agent/{agent_id}/context")
+async def get_agent_context_api(agent_id: str):
+    from ulrattack.interface.agent_context import get_agent_context
+
+    result = get_agent_context(agent_id)
+    if result.get("success"):
+        return {"status": "ok", **result}
+    return {"status": "error", "message": result.get("error", "获取失败")}
+
+
+@app.get("/api/agent/{agent_id}/context/{index}")
+async def get_agent_message_api(agent_id: str, index: int):
+    from ulrattack.interface.agent_context import get_agent_message
+
+    result = get_agent_message(agent_id, index)
+    if result.get("success"):
+        return {"status": "ok", **result}
+    return {"status": "error", "message": result.get("error", "获取失败")}
+
+
+@app.put("/api/agent/{agent_id}/context/{index}")
+async def edit_agent_message_api(agent_id: str, index: int, req: ContextEditRequest):
+    from ulrattack.interface.agent_context import edit_agent_message
+
+    result = edit_agent_message(agent_id, index, req.content)
+    if result.get("success"):
+        return {"status": "ok", **result}
+    return {"status": "error", "message": result.get("error", "编辑失败")}
+
+
+@app.post("/api/agent/{agent_id}/context/truncate")
+async def truncate_agent_context_api(agent_id: str, req: ContextTruncateRequest):
+    from ulrattack.interface.agent_context import truncate_agent_context
+
+    result = truncate_agent_context(agent_id, req.from_index)
+    if result.get("success"):
+        return {"status": "ok", **result}
+    return {"status": "error", "message": result.get("error", "截断失败")}
+
+
+@app.post("/api/agent/{agent_id}/regenerate")
+async def regenerate_agent_api(agent_id: str, req: RegenerateRequest):
+    from ulrattack.interface.agent_context import regenerate_agent
+
+    result = await regenerate_agent(agent_id, req.from_index)
+    if result.get("success"):
+        return {"status": "ok", **result}
+    return {"status": "error", "message": result.get("error", "重新生成失败")}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     state.active_connections.append(websocket)
+
+    IDLE_INTERVAL = 2.0
+    ACTIVE_INTERVAL = 0.5
+
     try:
         while True:
             if state.tracer:
-                # 收集数据
-                data = {
+                from ulrattack.interface.agent_context import get_runtime_model_info
+
+                current_global_seq = state.tracer.get_global_sequence()
+                has_streaming = bool(state.tracer.streaming_content)
+
+                model_info = get_runtime_model_info()
+                data: dict[str, Any] = {
                     "agents": state.tracer.agents,
                     "vulnerabilities": state.tracer.vulnerability_reports,
                     "stats": {
@@ -455,10 +560,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         "total_tokens": state.tracer.get_total_llm_stats()["total_tokens"]
                     },
                     "streaming_content": state.tracer.streaming_content,
-                    "events": {}
+                    "runtime_model": model_info.get("global_model", ""),
+                    "agent_models": model_info.get("agent_models", {}),
+                    "events": {},
+                    "global_seq": current_global_seq,
                 }
-                
-                # 为每个代理收集事件
+
                 for agent_id in state.tracer.agents:
                     chat_events = [
                         {
@@ -469,12 +576,13 @@ async def websocket_endpoint(websocket: WebSocket):
                             "content": msg["content"],
                             "tool_name": None,
                             "status": None,
-                            "result": None
+                            "result": None,
+                            "_seq": msg["_seq"],
                         }
                         for msg in state.tracer.chat_messages
                         if msg.get("agent_id") == agent_id
                     ]
-                    
+
                     tool_events = [
                         {
                             "type": "tool",
@@ -484,18 +592,33 @@ async def websocket_endpoint(websocket: WebSocket):
                             "content": None,
                             "tool_name": tool_data.get("tool_name"),
                             "status": tool_data.get("status"),
-                            "result": tool_data.get("result")
+                            "result": tool_data.get("result"),
+                            "_seq": tool_data["_seq"],
                         }
                         for exec_id, tool_data in state.tracer.tool_executions.items()
                         if tool_data.get("agent_id") == agent_id
                     ]
-                    
+
                     events = sorted(chat_events + tool_events, key=lambda x: x["timestamp"])
                     data["events"][agent_id] = events
 
-                await websocket.send_text(json.dumps(data))
-            
-            await asyncio.sleep(0.5)
+                payload = json.dumps(data)
+
+                if len(payload) > 5_000_000:
+                    logger.warning(
+                        "WebSocket payload too large (%d bytes), truncating events",
+                        len(payload),
+                    )
+                    for agent_id in data["events"]:
+                        data["events"][agent_id] = data["events"][agent_id][-200:]
+                    payload = json.dumps(data)
+
+                await websocket.send_text(payload)
+
+                sleep_duration = ACTIVE_INTERVAL if has_streaming else IDLE_INTERVAL
+            else:
+                sleep_duration = IDLE_INTERVAL
+            await asyncio.sleep(sleep_duration)
     except WebSocketDisconnect:
         state.active_connections.remove(websocket)
     except Exception as e:

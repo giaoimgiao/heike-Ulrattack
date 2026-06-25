@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 MAX_TOTAL_TOKENS = 100_000
 MIN_RECENT_MESSAGES = 15
+COMPRESSION_THRESHOLD_RATIO = 0.7
+HARD_LIMIT_RATIO = 1.0
+MAX_MESSAGES_BEFORE_COMPRESS = 100
 
 SUMMARY_PROMPT_TEMPLATE = """You are an agent performing context
 condensation for a security agent. Your job is to compress scan data while preserving
@@ -121,8 +124,8 @@ def _summarize_messages(
             "content": summary_msg.format(count=len(messages), text=summary),
         }
     except Exception:
-        logger.exception("Failed to summarize messages")
-        return messages[0]
+        logger.exception("Failed to summarize messages; returning uncompressed chunk")
+        return None
 
 
 def _handle_images(messages: list[dict[str, Any]], max_images: int) -> None:
@@ -199,15 +202,41 @@ class MemoryCompressor:
             _get_message_tokens(msg, model_name) for msg in system_msgs + regular_msgs
         )
 
-        if total_tokens <= MAX_TOTAL_TOKENS * 0.9:
+        needs_compression = (
+            total_tokens > MAX_TOTAL_TOKENS * COMPRESSION_THRESHOLD_RATIO
+            or len(regular_msgs) > MAX_MESSAGES_BEFORE_COMPRESS
+        )
+
+        if not needs_compression:
             return messages
+
+        if total_tokens > MAX_TOTAL_TOKENS * HARD_LIMIT_RATIO:
+            force_compress_count = max(0, len(regular_msgs) - MIN_RECENT_MESSAGES)
+            old_msgs = regular_msgs[:force_compress_count]
+            recent_msgs = regular_msgs[force_compress_count:]
+        else:
+            recent_msgs = regular_msgs[-MIN_RECENT_MESSAGES:]
+            old_msgs = regular_msgs[:-MIN_RECENT_MESSAGES]
 
         compressed = []
         chunk_size = 10
+        summarization_failed = False
         for i in range(0, len(old_msgs), chunk_size):
             chunk = old_msgs[i : i + chunk_size]
+            if summarization_failed:
+                compressed.extend(chunk)
+                continue
             summary = _summarize_messages(chunk, model_name, self.timeout)
-            if summary:
+            if summary is not None:
                 compressed.append(summary)
+            else:
+                logger.warning(
+                    "Summarization failed for chunk %d-%d, circuit breaker open — "
+                    "keeping remaining %d messages uncompressed",
+                    i, min(i + chunk_size, len(old_msgs)),
+                    len(old_msgs) - i,
+                )
+                summarization_failed = True
+                compressed.extend(chunk)
 
         return system_msgs + compressed + recent_msgs

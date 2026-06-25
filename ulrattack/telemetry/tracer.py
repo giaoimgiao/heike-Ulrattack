@@ -25,6 +25,10 @@ def set_global_tracer(tracer: "Tracer") -> None:
     _global_tracer = tracer
 
 
+MAX_CHAT_MESSAGES = 5000
+MAX_TOOL_EXECUTIONS = 2000
+
+
 class Tracer:
     def __init__(self, run_name: str | None = None):
         self.run_name = run_name
@@ -55,6 +59,7 @@ class Tracer:
         self._next_execution_id = 1
         self._next_message_id = 1
         self._saved_vuln_ids: set[str] = set()
+        self._event_sequence = 0
 
         self.vulnerability_found_callback: Callable[[dict[str, Any]], None] | None = None
 
@@ -202,6 +207,22 @@ class Tracer:
 
         self.agents[agent_id] = agent_data
 
+    def _next_event_sequence(self) -> int:
+        self._event_sequence += 1
+        return self._event_sequence
+
+    def _trim_chat_messages(self) -> None:
+        if len(self.chat_messages) > MAX_CHAT_MESSAGES:
+            excess = len(self.chat_messages) - MAX_CHAT_MESSAGES
+            self.chat_messages = self.chat_messages[excess:]
+
+    def _trim_tool_executions(self) -> None:
+        if len(self.tool_executions) > MAX_TOOL_EXECUTIONS:
+            excess = len(self.tool_executions) - MAX_TOOL_EXECUTIONS
+            sorted_ids = sorted(self.tool_executions.keys())
+            for exec_id in sorted_ids[:excess]:
+                del self.tool_executions[exec_id]
+
     def log_chat_message(
         self,
         content: str,
@@ -211,6 +232,7 @@ class Tracer:
     ) -> int:
         message_id = self._next_message_id
         self._next_message_id += 1
+        seq = self._next_event_sequence()
 
         message_data = {
             "message_id": message_id,
@@ -219,14 +241,17 @@ class Tracer:
             "agent_id": agent_id,
             "timestamp": datetime.now(UTC).isoformat(),
             "metadata": metadata or {},
+            "_seq": seq,
         }
 
         self.chat_messages.append(message_data)
+        self._trim_chat_messages()
         return message_id
 
     def log_tool_execution_start(self, agent_id: str, tool_name: str, args: dict[str, Any]) -> int:
         execution_id = self._next_execution_id
         self._next_execution_id += 1
+        seq = self._next_event_sequence()
 
         now = datetime.now(UTC).isoformat()
         execution_data = {
@@ -239,6 +264,7 @@ class Tracer:
             "timestamp": now,
             "started_at": now,
             "completed_at": None,
+            "_seq": seq,
         }
 
         self.tool_executions[execution_id] = execution_data
@@ -246,6 +272,7 @@ class Tracer:
         if agent_id in self.agents:
             self.agents[agent_id]["tool_executions"].append(execution_id)
 
+        self._trim_tool_executions()
         return execution_id
 
     def update_tool_execution(
@@ -255,6 +282,7 @@ class Tracer:
             self.tool_executions[execution_id]["status"] = status
             self.tool_executions[execution_id]["result"] = result
             self.tool_executions[execution_id]["completed_at"] = datetime.now(UTC).isoformat()
+            self.tool_executions[execution_id]["_seq"] = self._next_event_sequence()
 
     def update_agent_status(
         self, agent_id: str, status: str, error_message: str | None = None
@@ -472,6 +500,44 @@ class Tracer:
             return content
 
         return self.interrupted_content.pop(agent_id, None)
+
+    def get_events_since(self, agent_id: str, since_seq: int) -> list[dict[str, Any]]:
+        chat_events = [
+            {
+                "type": "chat",
+                "timestamp": msg["timestamp"],
+                "id": f"chat_{msg['message_id']}",
+                "role": msg["role"],
+                "content": msg["content"],
+                "tool_name": None,
+                "status": None,
+                "result": None,
+                "_seq": msg["_seq"],
+            }
+            for msg in self.chat_messages
+            if msg.get("agent_id") == agent_id and msg["_seq"] > since_seq
+        ]
+
+        tool_events = [
+            {
+                "type": "tool",
+                "timestamp": tool_data["timestamp"],
+                "id": f"tool_{exec_id}",
+                "role": "tool",
+                "content": None,
+                "tool_name": tool_data.get("tool_name"),
+                "status": tool_data.get("status"),
+                "result": tool_data.get("result"),
+                "_seq": tool_data["_seq"],
+            }
+            for exec_id, tool_data in self.tool_executions.items()
+            if tool_data.get("agent_id") == agent_id and tool_data["_seq"] > since_seq
+        ]
+
+        return sorted(chat_events + tool_events, key=lambda x: x["timestamp"])
+
+    def get_global_sequence(self) -> int:
+        return self._event_sequence
 
     def cleanup(self) -> None:
         self.save_run_data(mark_complete=True)

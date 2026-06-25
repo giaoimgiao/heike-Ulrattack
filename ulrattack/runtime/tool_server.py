@@ -9,8 +9,13 @@ import queue as stdlib_queue
 import signal
 import sys
 import threading
-from multiprocessing import Process, Queue
+import multiprocessing as mp
 from typing import Any
+
+# uvicorn 主进程含多线程；在 Linux 上默认 fork 子进程易死锁，必须用 spawn
+MP_CTX = mp.get_context("spawn")
+Process = MP_CTX.Process
+Queue = MP_CTX.Queue
 from uuid import uuid4
 
 import uvicorn
@@ -78,14 +83,21 @@ class ToolExecutionResponse(BaseModel):
     error: str | None = None
 
 
-def agent_worker(_agent_id: str, request_queue: Queue[Any], response_queue: Queue[Any]) -> None:
+def agent_worker(
+    _agent_id: str,
+    request_queue: Queue[Any],
+    response_queue: Queue[Any],
+    request_timeout: int,
+) -> None:
     null_handler = logging.NullHandler()
 
     root_logger = logging.getLogger()
     root_logger.handlers = [null_handler]
     root_logger.setLevel(logging.CRITICAL)
 
+    import inspect
     from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import TimeoutError as FuturesTimeoutError
 
     from ulrattack.tools.argument_parser import ArgumentConversionError, convert_arguments
     from ulrattack.tools.registry import get_tool_by_name
@@ -105,6 +117,8 @@ def agent_worker(_agent_id: str, request_queue: Queue[Any], response_queue: Queu
 
             converted_kwargs = convert_arguments(tool_func, kwargs)
             result = tool_func(**converted_kwargs)
+            if inspect.isawaitable(result):
+                result = asyncio.run(result)
 
             response_queue.put({"request_id": request_id, "result": result})
 
@@ -115,7 +129,7 @@ def agent_worker(_agent_id: str, request_queue: Queue[Any], response_queue: Queu
         except Exception as e:  # noqa: BLE001
             response_queue.put({"request_id": request_id, "error": f"Unexpected error: {e}"})
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         while True:
             request = None
             try:
@@ -124,7 +138,19 @@ def agent_worker(_agent_id: str, request_queue: Queue[Any], response_queue: Queu
                 if request is None:
                     break
 
-                executor.submit(_execute_request, request)
+                req_id = request.get("request_id", "")
+                future = executor.submit(_execute_request, request)
+                try:
+                    future.result(timeout=request_timeout)
+                except FuturesTimeoutError:
+                    response_queue.put(
+                        {
+                            "request_id": req_id,
+                            "error": (
+                                f"Tool execution timed out after {request_timeout} seconds"
+                            ),
+                        }
+                    )
 
             except (RuntimeError, ValueError, ImportError) as e:
                 req_id = request.get("request_id", "") if request else ""
@@ -168,7 +194,9 @@ def ensure_agent_process(agent_id: str) -> tuple[Queue[Any], Queue[Any]]:
         response_queue: Queue[Any] = Queue()
 
         process = Process(
-            target=agent_worker, args=(agent_id, request_queue, response_queue), daemon=True
+            target=agent_worker,
+            args=(agent_id, request_queue, response_queue, REQUEST_TIMEOUT),
+            daemon=True,
         )
         process.start()
 

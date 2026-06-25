@@ -3,6 +3,7 @@ import logging
 import os
 import secrets
 import socket
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
@@ -28,6 +29,16 @@ TOOL_SERVER_HEALTH_RETRIES = 10  # number of retries for health check
 logger = logging.getLogger(__name__)
 
 
+def _ulrattack_package_dir() -> Path | None:
+    """本机 ulrattack 源码目录（用于挂载进容器，改代码后无需重建镜像）。"""
+    if getattr(sys, "_MEIPASS", None):
+        return None
+    package_dir = Path(__file__).resolve().parent.parent
+    if (package_dir / "runtime" / "tool_server.py").is_file():
+        return package_dir
+    return None
+
+
 class DockerRuntime(AbstractRuntime):
     def __init__(self) -> None:
         try:
@@ -51,6 +62,34 @@ class DockerRuntime(AbstractRuntime):
         self._scan_container: Container | None = None
         self._tool_server_port: int | None = None
         self._tool_server_token: str | None = None
+
+    def _build_container_volumes(self) -> dict[str, dict[str, str]]:
+        host_runs_dir = Path.cwd() / "ulrattack_runs"
+        host_runs_dir.mkdir(parents=True, exist_ok=True)
+        volumes: dict[str, dict[str, str]] = {
+            str(host_runs_dir.resolve()): {
+                "bind": "/workspace/ulrattack_runs",
+                "mode": "rw",
+            }
+        }
+        logger.info(
+            "Mapping host directory %s to container /workspace/ulrattack_runs",
+            host_runs_dir,
+        )
+
+        if os.getenv("ULRATTACK_DISABLE_SOURCE_MOUNT", "").lower() != "true":
+            package_dir = _ulrattack_package_dir()
+            if package_dir is not None:
+                volumes[str(package_dir.resolve())] = {
+                    "bind": "/app/ulrattack",
+                    "mode": "ro",
+                }
+                logger.info(
+                    "Mapping host ulrattack source %s to container /app/ulrattack "
+                    "(code changes apply without rebuilding the image)",
+                    package_dir,
+                )
+        return volumes
 
     def _generate_sandbox_token(self) -> str:
         return secrets.token_urlsafe(32)
@@ -146,18 +185,7 @@ class DockerRuntime(AbstractRuntime):
                 self._tool_server_port = tool_server_port
                 self._tool_server_token = tool_server_token
 
-                # 准备 volume 映射：将宿主机的 ulrattack_runs 映射到容器的 /workspace/ulrattack_runs
-                host_runs_dir = Path.cwd() / "ulrattack_runs"
-                host_runs_dir.mkdir(parents=True, exist_ok=True)
-                
-                volumes = {
-                    str(host_runs_dir.resolve()): {
-                        'bind': '/workspace/ulrattack_runs',
-                        'mode': 'rw'
-                    }
-                }
-                
-                logger.info(f"Mapping host directory {host_runs_dir} to container /workspace/ulrattack_runs")
+                volumes = self._build_container_volumes()
 
                 container = self.client.containers.run(
                     image_name,
@@ -325,9 +353,9 @@ class DockerRuntime(AbstractRuntime):
         # 将日志重定向到文件以便排查
         container.exec_run(
             f"bash -c 'source /etc/profile.d/proxy.sh && cd /app && "
-            f"STRIX_SANDBOX_MODE=true CAIDO_API_TOKEN={caido_token} CAIDO_PORT={caido_port} "
-            f"poetry run python strix/runtime/tool_server.py --token {tool_server_token} "
-            f"--host 0.0.0.0 --port {tool_server_port} "
+            f"ULRATTACK_SANDBOX_MODE=true CAIDO_API_TOKEN={caido_token} CAIDO_PORT={caido_port} "
+            f"/app/venv/bin/python ulrattack/runtime/tool_server.py --token {tool_server_token} "
+            f"--host 0.0.0.0 --port {tool_server_port} --timeout {execution_timeout} "
             f"> /tmp/tool_server.log 2>&1 &'",
             detach=True,
             user="pentester",
